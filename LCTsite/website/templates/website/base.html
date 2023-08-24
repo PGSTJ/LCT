@@ -1,0 +1,54 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{% static 'website/css/general.css' %}">
+
+    {% block head %}
+        <title>La Croix Tracking</title>
+    {% endblock %}
+
+</head>
+<body>
+    {% block content %}
+    <div id="top-section">
+        
+        <header>
+            <div class="site-title-container">
+                <h1 class="site-title">
+                    <a href="/home">LCT</a>
+                </h1>
+            </div>
+            
+            <nav>
+                <span class="nav-option">
+                    <a href="/add_data">Add Data</a>
+                </span>
+                <span class="nav-option">
+                    <a href="/view_graphs">View Graphs</a>
+                </span>
+                <span class="nav-option">
+                    <a href="/view_stats">View Statistics</a>
+                </span>
+            </nav>
+        </header>
+
+
+        <div class="page-intro">
+            <h2>{{  page_intro  }}</h2>
+            <p>{{  page_description  }}</p>
+
+        </div>
+
+    </div>
+
+    {% endblock %}
+
+    <footer>
+        <p>&copy; 2023 LCT</p>
+    </footer>
+</body>
+</html>

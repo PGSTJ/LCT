@@ -1,0 +1,62 @@
+@font-face {
+    font-family: 'Aclonica', sans-serif;
+    src: url("{% static 'website/fonts/Aclonica' %}") format('woff2');
+
+}
+
+.top-section {
+    font-family: 'Aclonica', sans-serif;
+    background-image: url("{% static 'website/images/lacroixbeach.jpg' %}");
+    background-size: cover;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+
+header {
+    display: flex;
+    padding-top: 3%;
+    margin-left: 20%;
+    height: 5vh;
+    width: 60vw;
+    align-items: center;
+    justify-content: space-between;
+    
+}
+
+.page-intro {
+    align-self: center;
+    font-size: larger;
+}
+
+.site-title-container {
+    padding-left: 5px;
+}
+
+.site-title a {
+    text-decoration: none;
+    color: black;
+}
+
+
+
+.nav-option a {
+    text-decoration: none;
+    color: black;
+    padding: 15px;
+    width: 10px;
+}
+
+body {
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    overflow-x: hidden;
+}
+
+
+
+

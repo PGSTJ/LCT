@@ -1,0 +1,46 @@
+{% extends "website/base.html" %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="{% static 'website/css/pages.css' %}">
+<title>LCT Home</title>
+{% endblock %}
+
+{% block content %}
+<div class="top-section">
+        
+    <header>
+        <div class="site-title-container">
+            <h1 class="site-title">
+                <a href="/home">LCT</a>
+            </h1>
+        </div>
+        
+        <nav>
+            <span class="nav-option">
+                <a href="/add_data">Add Data</a>
+            </span>
+            <span class="nav-option">
+                <a href="/view_graphs">View Graphs</a>
+            </span>
+            <span class="nav-option">
+                <a href="/view_stats">View Statistics</a>
+            </span>
+        </nav>
+    </header>
+
+
+    <div class="homepage-intro">
+        <h1>La Croix Tracker</h1>
+    </div>
+
+</div>
+
+<section class="content">
+    <h2>About</h2>
+</section>
+
+<section class="content">
+    <h2>Contact</h2>
+</section>
+
+{% endblock %}
