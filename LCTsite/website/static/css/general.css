@@ -1,12 +1,12 @@
 @font-face {
     font-family: 'Aclonica', sans-serif;
-    src: url("{% static 'website/fonts/Aclonica' %}") format('woff2');
+    src: url('..\\static\\fonts\\Aclonica') format('woff2');
 
 }
 
 .top-section {
     font-family: 'Aclonica', sans-serif;
-    background-image: url("{% static 'website/images/lacroixbeach.jpg' %}");
+    background-image: url('..\\static\\images\\lacroixbeach.jpg');
     background-size: cover;
     height: 100vh;
     width: 100vw;
