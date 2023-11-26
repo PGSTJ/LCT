@@ -1,0 +1,138 @@
+{% extends "website/base.html" %}
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="{% static 'css\\pages.css' %}">
+<title>Data Quick Upload</title>
+
+<style>
+    .data-fs {
+        display: inline-block;
+    }
+
+    .cd-section {
+        padding-bottom: 5px;
+        padding-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<h1>Data Quick Upload</h1>
+
+<form enctype="multipart/form-data" action="/insert_data" method="POST">
+    {% csrf_token %}
+
+    <div class="input-data-box">
+        <fieldset class="data-fs">
+            <legend><h2>Box Data</h2></legend>
+
+            <p>Upload multiple boxes via CSV</p>
+            
+            <input type="file" name="bdqu" id="bdqu" accept=".csv">
+
+            <br>
+
+            <button type="submit" id="submitbd" name="bdupload">Upload</button>
+        </fieldset>     
+    </div>
+    
+    <div class="input-data-box">  
+        <fieldset class="data-fs">
+            <legend><h2>Can Data</h2></legend>
+
+            <div class="cd-section">
+                <label for="box_select">Update Box:</label>
+                <select name="fill_box" id="box_select" required>
+                    {% for box in available_boxes %}
+                    <option value="{{box}}">{{box}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="cd-section">
+                <input type="file" name="cdqu" id="cdqu" accept=".csv">
+            </div>
+            <br>
+
+            <button type="submit" id="submitcd" name="cdupload">Upload</button>
+        </fieldset>
+    </div>
+
+    <br>
+
+    <button type="submit" value="Submit" id="upload_all">Upload All</button>
+
+</form>
+
+<script>
+    async function formatData() {
+        // formats user submitted can data by box
+        const boxID = document.getElementById('q1').value;
+        const canData = document.getElementById('q2');
+
+        const allCans = [];
+        
+        for (let i = 1; i <= 8; i++) {
+            const can = [];
+            const row = canData.rows[i];
+            const inputs = row.querySelectorAll("input");
+            
+            for (const input of inputs) {
+                can.push(input.value);
+            }
+            allCans.push(can);
+        }
+
+
+        const formData = {
+            'dataType': 'can',
+            'boxID': boxID,
+            'canData': allCans
+        };
+
+        return formData;
+
+    }
+
+    async function submission(formData) {
+        // input processing and redirect
+        try {
+            const response = await fetch("/submit_form", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
+            });
+
+            if (response.ok) {
+                document.getElementById("questions-form").style.display = "none";
+
+
+                setTimeout(function () {
+                    window.location.href = "/add_data"; // Redirect to /add_data after the popup disappears
+                }, 1); // Popup display time (adjust as needed)
+            } else {
+                console.error("Error submitting the form");
+            }
+        } catch (error) {
+            console.error("Error submitting the form:", error);
+        }
+    }
+
+
+
+    async function uploadCans() {
+        event.preventDefault();
+
+        const data = await formatData();
+
+        return await submission(data);
+    }
+        
+
+    document
+        .getElementById("questions-form")
+        .addEventListener("submit", finalSubmission);
+</script>
+
+{% endblock %}

@@ -3,17 +3,16 @@ from django.db import models
 # Create your models here.
 
 class AbbreviationReferences(models.Model):
-    uid = models.IntegerField()
+    uid = models.CharField(max_length=10)
     abbreviation = models.CharField(max_length=3)
-    name = models.CharField(max_length=20)
-    category = models.CharField(max_length=15)
+    name = models.CharField(max_length=40)
 
 
 class BoxTracker(models.Model):
     bid = models.CharField(max_length=20)
     flavor = models.CharField(max_length=3)
     purchase_date = models.CharField(max_length=15)
-    price = models.IntegerField()
+    price = models.CharField(max_length=10)
     location = models.CharField(max_length=5)
     started = models.CharField(max_length=15)
     finished = models.CharField(max_length=15)
@@ -60,15 +59,15 @@ class BoxAverages(models.Model):
         }
 
 class CanData(models.Model):
-    cid = models.CharField(max_length=10)
+    cid = models.CharField(max_length=40)
     bid = models.ForeignKey(BoxTracker, on_delete=models.CASCADE)
-    initial_grams = models.IntegerField()
-    initial_floz = models.IntegerField()
-    final_grams = models.IntegerField()
-    final_floz = models.IntegerField()
-    finished = models.CharField(max_length=1)
-    percent_remaining_g = models.IntegerField()
-    percent_remaining_floz = models.IntegerField()
+    initial_grams = models.CharField(max_length=3)
+    initial_floz = models.CharField(max_length=4)
+    final_grams = models.CharField(max_length=3)
+    final_floz = models.CharField(max_length=4)
+    finished = models.CharField(max_length=2)
+    percent_remaining_g = models.CharField(max_length=5)
+    percent_remaining_floz = models.CharField(max_length=5)
 
 
     def stats(self) -> dict:
