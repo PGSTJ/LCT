@@ -6,6 +6,16 @@
 <title>Data Quick Upload</title>
 
 <style>
+    .all {
+        display: flex;
+        justify-content: left;
+        align-items: center;
+    }
+
+    .right {
+        margin-left: 40%;
+    }
+
     .data-fs {
         display: inline-block;
     }
@@ -14,6 +24,42 @@
         padding-bottom: 5px;
         padding-top: 5px;
     }
+
+    .submitabbr {
+        display: inline;
+    }
+
+    .success-msg {
+        opacity: 0;
+        color: green;
+        font-weight: bold;
+        animation: fadeInOut;
+    }
+    
+    .success-animation {
+        animation: fadeInOut;
+    }
+
+    @keyframes fadeInOut {
+        0% {
+            opacity: 0;
+        }
+        20% {
+            opacity: 0.5;
+        }
+        40% {
+            opacity: 1;
+        }
+        60% {
+            opacity: 1;
+        }
+        80% {
+            opacity: 0.5;
+        }
+        100% {
+            opacity: 0;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -21,51 +67,151 @@
 
 <h1>Data Quick Upload</h1>
 
-<form enctype="multipart/form-data" action="/insert_data" method="POST">
-    {% csrf_token %}
-
-    <div class="input-data-box">
-        <fieldset class="data-fs">
-            <legend><h2>Box Data</h2></legend>
-
-            <p>Upload multiple boxes via CSV</p>
+<div class="all">
+    <div class="left">
+        <form enctype="multipart/form-data" action="/insert_data" method="POST">
+            {% csrf_token %}
+        
+            <div class="input-data-box">
+                <fieldset class="data-fs">
+                    <legend><h2>Abbreviations</h2></legend>
+                    <table id="abbr-addition">
+                        <tr class="add-abbr-hdr">
+                            <th>Name</th>
+                            <th>Abbreviation</th>
+                            <th>Type</th>
+                        </tr>
+                        <tr class="name-abbr-pair">
+                            <td><input type="text" name="abbr-name1" id="abbr-name1"></td>
+                            <td><input type="text" name="abbr-abbr1" id="abbr-abbr1"></td>
+                            <td>
+                                <select name="abbr-type1" id="abbr-type1">
+                                    <option value="LOC">LOC</option>
+                                    <option value="FLV">FLV</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="name-abbr-pair">
+                            <td><input type="text" name="abbr-name2" id="abbr-name2"></td>
+                            <td><input type="text" name="abbr-abbr2" id="abbr-abbr2"></td>
+                            <td>
+                                <select name="abbr-type2" id="abbr-type2">
+                                    <option value="LOC">LOC</option>
+                                    <option value="FLV">FLV</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="name-abbr-pair">
+                            <td><input type="text" name="abbr-name3" id="abbr-name3"></td>
+                            <td><input type="text" name="abbr-abbr3" id="abbr-abbr3"></td>
+                            <td>
+                                <select name="abbr-type3" id="abbr-type3">
+                                    <option value="LOC">LOC</option>
+                                    <option value="FLV">FLV</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="name-abbr-pair">
+                            <td><input type="text" name="abbr-name4" id="abbr-name4"></td>
+                            <td><input type="text" name="abbr-abbr4" id="abbr-abbr4"></td>
+                            <td>
+                                <select name="abbr-type4" id="abbr-type4">
+                                    <option value="LOC">LOC</option>
+                                    <option value="FLV">FLV</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="name-abbr-pair">
+                            <td><input type="text" name="abbr-name5" id="abbr-name5"></td>
+                            <td><input type="text" name="abbr-abbr5" id="abbr-abbr5"></td>
+                            <td>
+                                <select name="abbr-type5" id="abbr-type5">
+                                    <option value="LOC"">LOC</option>
+                                    <option value="FLV">FLV</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="name-abbr-pair">
+                            <td><input type="text" name="abbr-name6" id="abbr-name6"></td>
+                            <td><input type="text" name="abbr-abbr6" id="abbr-abbr6"></td>
+                            <td>
+                                <select name="abbr-type6" id="abbr-type6">
+                                    <option value="LOC">LOC</option>
+                                    <option value="FLV">FLV</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><button type="submit" id="submitabbr" name="submitabbr" onclick="flashSuccessMsg()">Add Abbreviation Pairs</button></td>
+                            <td><p class="success-msg" id="success-msg">Success!</p></td>
+                        </tr>
+                    </table>
+        
+                </fieldset>
+            </div>
+        
+            <div class="input-data-box">
+                <fieldset class="data-fs">
+                    <legend><h2>Box Data</h2></legend>
+        
+                    <p>Upload multiple boxes via CSV</p>
+                    
+                    <input type="file" name="bdqu" id="bdqu" accept=".csv">
+        
+                    <br>
+        
+                    <button type="submit" id="submitbd" name="bdupload">Upload</button>
+                </fieldset>     
+            </div>
             
-            <input type="file" name="bdqu" id="bdqu" accept=".csv">
-
+            <div class="input-data-box">  
+                <fieldset class="data-fs">
+                    <legend><h2>Can Data</h2></legend>
+        
+                    <div class="cd-section">
+                        <label for="box_select">Update Box:</label>
+                        <select name="fill_box" id="box_select">
+                            {% for box in available_boxes %}
+                            <option value="{{box}}">{{box}}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="cd-section">
+                        <input type="file" name="cdqu" id="cdqu" accept=".csv">
+                    </div>
+                    <br>
+        
+                    <button type="submit" id="submitcd" name="cdupload">Upload</button>
+                </fieldset>
+            </div>
+        
             <br>
-
-            <button type="submit" id="submitbd" name="bdupload">Upload</button>
-        </fieldset>     
+        
+            <button type="submit" value="Submit" id="upload_all">Upload All</button>
+        
+        </form>
     </div>
     
-    <div class="input-data-box">  
-        <fieldset class="data-fs">
-            <legend><h2>Can Data</h2></legend>
-
-            <div class="cd-section">
-                <label for="box_select">Update Box:</label>
-                <select name="fill_box" id="box_select" required>
-                    {% for box in available_boxes %}
-                    <option value="{{box}}">{{box}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="cd-section">
-                <input type="file" name="cdqu" id="cdqu" accept=".csv">
-            </div>
-            <br>
-
-            <button type="submit" id="submitcd" name="cdupload">Upload</button>
-        </fieldset>
+    <div class="right">
+        <form action="/test">
+            {% csrf_token %}
+            <button name="test-btn" id="test-btn">Test</button>
+        </form>
     </div>
+</div>
 
-    <br>
-
-    <button type="submit" value="Submit" id="upload_all">Upload All</button>
-
-</form>
 
 <script>
+    function flashSuccessMsg() {
+        var successMsg = document.getElementById('success-msg');
+
+        successMsg.style.animation = 'fadeInOut 3s ease-in-out';
+
+        // setTimeout(function () {
+        //     successMsg.classList.remove('success-animation');
+        // }, 2000);
+    }
+
     async function formatData() {
         // formats user submitted can data by box
         const boxID = document.getElementById('q1').value;

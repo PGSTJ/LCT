@@ -3,20 +3,15 @@ import csv
 
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from .models import BasicAverages, BoxAverages, BoxTracker, CanData, AbbreviationReferences
+from .models import BasicAverages, BoxAverages, BoxTracker, CanData, AbbreviationReferences, RawTracker
 
 from .data import upload
-
-# Create your views (endpoints) here.
-
-def tutorial(response):
-    return HttpResponse('we out here learning django')
 
 def index(respone):
     return render(respone, 'website/base.html')
 
 def home(respone):
-    return render(respone, 'website/base.html')
+    return render(respone, 'website/homepage.html')
 
 def add_data(response):
     all_boxes = [box[0] for box in BoxTracker.objects.filter(filled=False).values_list('bid')]
@@ -35,19 +30,42 @@ def view_stats(respone):
 
 def insert_data(response):
     # upload Box Data must happen first
+    # file headers: Flavor, Purchased, Price, Location, Started, Finished
     # extract BID in process
     # side effects: location/flavor verify -- NOT NEEDED YET --
+
+    if 'submitabbr' in response.POST:
+        abbr_names = [response.POST.get(f'abbr-name{i}', '') for i in range(1, 7)]
+        abbr_abbreviations = [response.POST.get(f'abbr-abbr{i}', '') for i in range(1, 7)]
+        abbr_type = [response.POST.get(f'abbr-type{i}', '') for i in range(1, 7)]
+        all_pairs = [(item[0][0],item[0][1], item[1]) for item in zip(zip(abbr_names, abbr_abbreviations), abbr_type)]
+        print(all_pairs)
+        
+        
+        for name, abbreviation, type in all_pairs:
+            if name != '':
+                current_all = len(AbbreviationReferences.objects.all())
+                current_type = len(AbbreviationReferences.objects.filter(uid__contains=type))
+                id = upload.abbreviation_uid_generator(current_all, current_type, type)
+                ar = AbbreviationReferences(uid=id, name=name, abbreviation=abbreviation)
+                ar.save()
+                print('uploaded')
+        
     
     if response.FILES.get('bdqu'):
         bd_file = response.FILES['bdqu'].read().decode('utf-8').splitlines()
         format_bd = csv.DictReader(bd_file)
 
         for box in format_bd:
-            all_boxes = [d[0] for d in BoxTracker.objects.values_list('bid')]
-            b_id = upload.bid_generator(all_boxes, box['Flavor'])
+            update_raw_tracker(box['Flavor'])
+            id = bid_generator(box['Flavor'])
+            
+            formatting = upload.bd_formatter(id, box['Flavor'])
 
-            bd = BoxTracker(bid=b_id, flavor=box['Flavor'], purchase_date=box['Purchased'], price=box['Price'], location=box['Location'], started=box['Started'], finished=box['Finished'], contributing=False, filled=False)
-            bd.save()
+            for bid, flavor_code in formatting:
+                # eventually, start and finish dates will also be flavor specific
+                bd = BoxTracker(bid=bid, flavor=flavor_code, purchase_date=box['Purchased'], price=box['Price'], location=box['Location'], started=box['Started'], finished=box['Finished'], contributing=False, filled=False)
+                bd.save()
 
     if response.FILES.get('cdqu'):
         cd_file = response.FILES['cdqu'].read().decode('utf-8').splitlines()
@@ -59,7 +77,7 @@ def insert_data(response):
             c_id = f'{all_cans}.CD.' + can['Can']
 
             imass = can['Initial Mass']
-            ivol = can['Initial Volume']
+            ivol = can['Initial Volumne']
             fmass = can['Final Mass']
             fvol = can['Final Volume']
 
@@ -76,3 +94,31 @@ def insert_data(response):
     # return HttpResponse('Uploaded Box Data')
     
     return redirect('/add_data')
+
+def update_raw_tracker(flavor:str) -> bool:
+    total = RawTracker.objects.get(value='TotalBoxes')
+    total.amount += 1
+    total.save()
+    
+    all_values = [data[0] for data in RawTracker.objects.values_list('value')]
+    if flavor not in all_values:
+        update = RawTracker(value=flavor, amount=1)
+    elif flavor in all_values:
+        update = RawTracker.objects.get(value=flavor)
+        update.amount += 1
+    update.save()
+
+    return True
+ 
+def bid_generator(flavor_code:str) -> str:
+    overall = RawTracker.objects.get(value='TotalBoxes').amount
+    flavor_amt = RawTracker.objects.get(value=flavor_code).amount
+    return f'{overall}.{flavor_code}.{flavor_amt}'
+
+
+
+def test(response):
+    d = bid_generator('PSF')
+
+
+    return HttpResponse(d)

@@ -10,7 +10,7 @@ class AbbreviationReferences(models.Model):
 
 class BoxTracker(models.Model):
     bid = models.CharField(max_length=20)
-    flavor = models.CharField(max_length=3)
+    flavor = models.CharField(max_length=25)
     purchase_date = models.CharField(max_length=15)
     price = models.CharField(max_length=10)
     location = models.CharField(max_length=5)
@@ -90,3 +90,10 @@ class BasicAverages(models.Model):
     uid = models.CharField(max_length=10)
     name = models.CharField(max_length=45)
     value = models.IntegerField()
+
+
+class RawTracker(models.Model):
+    """ Tracks basic raw data """
+    value = models.CharField(max_length=10)
+    amount = models.IntegerField()
+
