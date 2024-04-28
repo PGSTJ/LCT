@@ -1,12 +1,13 @@
 {% extends "website/base.html" %}
+{% load static %}
 
 {% block head %}
-<link rel="stylesheet" type="text/css" href="{% static 'css\\pages.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'css/pages.css' %}">
 <title>LCT Home</title>
 {% endblock %}
 
 {% block content %}
-<div class="top-section">
+<!-- <div class="top-section">
         
     <header>
         <div class="site-title-container">
@@ -26,7 +27,7 @@
                 <a href="/view_stats">View Statistics</a>
             </span>
         </nav>
-    </header>
+    </header> -->
 
 
     <div class="homepage-intro">
@@ -42,5 +43,13 @@
 <section class="content">
     <h2>Contact</h2>
 </section>
+
+<div>
+    <form action="/test" method="POST">
+        {% csrf_token %}
+
+        <button>Test: Combo Mapping</button>
+    </form>
+</div>
 
 {% endblock %}
