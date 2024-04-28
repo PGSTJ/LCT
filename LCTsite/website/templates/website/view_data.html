@@ -1,0 +1,35 @@
+{% extends "website/base.html" %}
+{% load static %}
+
+{% block head %}
+<title>View Analytics</title>
+{% endblock %}
+
+{% block content %}
+<div>
+    <h1>Current Data</h1>
+    <table>
+        <tr>
+            <th>Box ID</th>
+            <th>Flavor</th>
+            <th>Purchase Date</th>
+            <th>Price</th>
+            <th>Purhase Location</th>
+            <th>Start Date</th>
+            <th>Finish Date</th>
+        </tr>
+        {% for boxes in documented_boxes %}
+        <tr>
+            <td>{{  boxes.1  }}</td>
+            <td>{{  boxes.2  }}</td>
+            <td>{{  boxes.3  }}</td>
+            <td>{{  boxes.4  }}</td>
+            <td>{{  boxes.5  }}</td>
+            <td>{{  boxes.6  }}</td>
+            <td>{{  boxes.7  }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}
+

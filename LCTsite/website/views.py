@@ -24,7 +24,9 @@ def view_graphs(respone):
     return render(respone, 'website/view_graphs.html')
 
 def view_stats(respone):
-    return render(respone, 'website/add_data.html')
+    all_boxes = [box for box in BoxTracker.objects.all().values_list()] # list of tupled box data
+    return render(respone, 'website/view_data.html', {'documented_boxes':all_boxes})
+
 
 
 
