@@ -50,3 +50,39 @@ button {
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
 }
 
+#submitabbr {
+    display: inline;
+}
+
+.success-msg {
+    opacity: 0;
+    color: green;
+    font-weight: bold;
+    animation: fadeInOut;
+    animation-duration: 2s;
+}
+
+.success-animation {
+    animation: fadeInOut;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+    }
+    20% {
+        opacity: 0.5;
+    }
+    40% {
+        opacity: 1;
+    }
+    60% {
+        opacity: 1;
+    }
+    80% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 0;
+    }
+}
