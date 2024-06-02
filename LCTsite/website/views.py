@@ -3,6 +3,8 @@ import csv
 
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+
+from .data.analysis import analysis
 from .models import BasicAverages, BoxAverages, BoxTracker, CanData, AbbreviationReferences, RawTracker
 
 from .data import upload
@@ -25,6 +27,8 @@ def view_graphs(respone):
 
 def view_stats(respone):
     all_boxes = [box for box in BoxTracker.objects.all().values_list()] # list of tupled box data
+    d = analysis.flavor_counts()
+    print(f'PSF count: {d}')
     return render(respone, 'website/view_data.html', {'documented_boxes':all_boxes})
 
 
