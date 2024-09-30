@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import BasicAverages, BoxAverages, BoxTracker, CanData, AbbreviationReferences, RawTracker
-# Register your models here.
+
 
 admin.site.register(BasicAverages)
 admin.site.register(BoxAverages)

@@ -1,6 +1,5 @@
 from django.db import models
 
-# Create your models here.
 
 class AbbreviationReferences(models.Model):
     uid = models.CharField(max_length=10)

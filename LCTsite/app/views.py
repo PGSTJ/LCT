@@ -8,24 +8,24 @@ from .models import BasicAverages, BoxAverages, BoxTracker, CanData, Abbreviatio
 from .data import upload
 
 def index(respone):
-    return render(respone, 'website/base.html')
+    return render(respone, 'app/base.html')
 
 def home(respone):
-    return render(respone, 'website/homepage.html')
+    return render(respone, 'app/homepage.html')
 
 def add_data(response):
     all_boxes = [box[0] for box in BoxTracker.objects.filter(filled=False).values_list('bid')]
     
 
-    return render(response, 'website/quick_upload.html', {'available_boxes':all_boxes})
-    # return render(respone, 'website/add_data.html', {'page_intro':title, 'page_description':pg_desc, 'title':title, 'verified':True})
+    return render(response, 'app/quick_upload.html', {'available_boxes':all_boxes})
+    # return render(respone, 'app/add_data.html', {'page_intro':title, 'page_description':pg_desc, 'title':title, 'verified':True})
 
 def view_graphs(respone):
-    return render(respone, 'website/view_graphs.html')
+    return render(respone, 'app/view_graphs.html')
 
 def view_stats(respone):
     all_boxes = [box for box in BoxTracker.objects.all().values_list()] # list of tupled box data
-    return render(respone, 'website/view_data.html', {'documented_boxes':all_boxes})
+    return render(respone, 'app/view_data.html', {'documented_boxes':all_boxes})
 
 
 
@@ -124,3 +124,4 @@ def test(response):
 
 
     return HttpResponse(d)
+

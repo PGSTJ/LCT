@@ -1,0 +1,25 @@
+{% extends "app/base.html" %} {% load static %} {% block head %}
+<link rel="stylesheet" type="text/css" href="{% static 'css\\pages.css' %}" />
+<title>Add La Croix Data</title>
+{% endblock %} {% block content %} {{ block.super }} {% if not verified %}
+<div class="admin-verify">
+  <form action="/admin_verify" method="POST">
+    <p>Please enter admin password to edit data:</p>
+    <input type="password" name="password" placeholder="password" required />
+  </form>
+</div>
+
+{% elif verified == 'AD' %}
+<div class="admin-verify">
+  <p>Access Denied.</p>
+</div>
+
+{% elif verified %}
+<div class="add-data-options">
+  <form action="/data_to_add" method="POST">
+    <button class="data_option" name="option" value="box">Add Box Data</button>
+    <button class="data_option" name="option" value="can">Add Can Data</button>
+  </form>
+</div>
+
+{% endif %} {% endblock %}
