@@ -1,7 +1,7 @@
 import json
 
 
-COMBO_PACKS = 'website\data\combos.json'
+COMBO_PACKS = r'app\data\combos.json'
 FLVR_AMT_VERIFICATION = 7 # TODO: Must increase value by 1 once >999 entries
 
 # all functions pertaining to data handling during model/DB uploads
