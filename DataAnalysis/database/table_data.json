@@ -1,0 +1,91 @@
+{
+  "box_data": [
+    {
+      "name": "box_id",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "flavor",
+      "data type": "VARCHAR(5)",
+      "foreign key": false
+    },
+    {
+      "name": "purchase_date",
+      "data type": "VARCHAR(10)",
+      "foreign key": false
+    },
+    {
+      "name": "price",
+      "data type": "VARCHAR(4)",
+      "foreign key": false
+    },
+    {
+      "name": "location",
+      "data type": "VARCHAR(5)",
+      "foreign key": false
+    },
+    {
+      "name": "start_date",
+      "data type": "VARCHAR(10)",
+      "foreign key": false
+    },
+    {
+      "name": "finish_date",
+      "data type": "VARCHAR(10)",
+      "foreign key": false
+    },
+    {
+      "name": "drink_velocity",
+      "data type": "INT",
+      "foreign key": false
+    },
+    {
+      "name": "time_to_start",
+      "data type": "INT",
+      "foreign key": false
+    }
+  ],
+  "can_data": [
+    {
+      "name": "can_id",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "initial_mass",
+      "data type": "INT",
+      "foreign key": false
+    },
+    {
+      "name": "initial_volume",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "final_mass",
+      "data type": "INT",
+      "foreign key": false
+    },
+    {
+      "name": "final_volume",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "complete_status",
+      "data type": "VARCHAR(3)",
+      "foreign key": false
+    },
+    {
+      "name": "percent_mass_remaining",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "percent_volume_remaining",
+      "data type": "TEXT",
+      "foreign key": false
+    }
+  ]
+}

@@ -3,13 +3,16 @@ import DataAnalysis.basics
 import DataAnalysis.config
 import DataAnalysis.format_upload_data
 
+import DataAnalysis.database as dadb
+import DataAnalysis.utils as dau
+
 
 
 
 if __name__ == '__main__':
-    d = DataAnalysis.basics.get_average_drink_velocity()
-    print(d)
-    # for i in d:
-    #     print(i)
+    dadb.Database()._recreate_tables()
+    dau.upload_to_db()
+    
+      
     
     

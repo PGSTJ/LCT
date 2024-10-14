@@ -5,7 +5,7 @@ BOX_EXPORT = 'exported_box_data.csv'
 CAN_EXPORT = 'exported_can_data.csv'
 
 
-class BoxUploadData():
+class BoxExportData():
     def __init__(self, data:dict[str,str]):
         self.uid:str = data['UID']
         self.flavor:str = data['Flavor']
@@ -32,14 +32,14 @@ class BoxUploadData():
     
 
 
-def extract_export_data() -> tuple[list[BoxUploadData], list[pd.DataFrame]]:
+def extract_export_data() -> tuple[list[BoxExportData], list[pd.DataFrame]]:
     """Extracts box and can data from Notion CSV and MD files, then exports into master CSVs"""
     md_can_data_dir = SPREADSHEET_DIR / 'LCT_2024/can_data_by_box'
     for file in os.listdir(md_can_data_dir):
         props, table_data = read_markdown_data(md_can_data_dir / file)
         props['UID'] = _format_box_uid(file.split())
         # if box == '12BP':
-        bd = BoxUploadData(props)
+        bd = BoxExportData(props)
         export_box_data(bd)
         export_can_data(table_data,bd.uid)
 
@@ -86,7 +86,7 @@ def extract_properties_and_table(content:str) -> tuple[dict[str,str], pd.DataFra
     return properties, table
 
 
-def export_box_data(box_data:BoxUploadData):
+def export_box_data(box_data:BoxExportData):
     with open(BOX_EXPORT, 'a') as fn:
         data = box_data._csv_export()
         wtr = csv.DictWriter(fn, data[1], lineterminator='\n')        

@@ -6,6 +6,10 @@ def get_average_price():
     return round(np.average([float(value) for value in ALL_BOX_DATA_DF['price'].to_numpy() if value != 'NA']), 2)
 
 def get_average_drink_velocity():
+    
+
+
+
     date_data = ALL_BOX_DATA_DF.get(['started', 'finished'])
     dct_version:dict[str, dict[int,str]] = date_data.to_dict()
     # pairs start and finish dates for direct comparison
