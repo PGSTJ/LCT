@@ -31,6 +31,22 @@ class BoxExportData():
         return self.__dict__, [hdr for hdr in self.__dict__]
     
 
+
+def extract_export_data() -> tuple[list[BoxExportData], list[pd.DataFrame]]:
+    """Extracts box and can data from Notion CSV and MD files, then exports into master CSVs"""
+    md_can_data_dir = SPREADSHEET_DIR / 'LCT_2024/can_data_by_box'
+    for file in os.listdir(md_can_data_dir):
+        props, table_data = read_markdown_data(md_can_data_dir / file)
+        props['UID'] = _format_box_uid(file.split())
+        # if box == '12BP':
+        bd = BoxExportData(props)
+        export_box_data(bd)
+        export_can_data(table_data,bd.uid)
+
+    print('Done with extracting and writing')
+        # format for csv export to update master csvs
+
+
 def _format_box_uid(file_name:list[str]):
     """Accounts for costco packs which have an extra subdivision detailing the flavors within"""
     if len(file_name[1]) > 2:
@@ -94,19 +110,5 @@ def export_can_data(can_data:pd.DataFrame, box:str):
     return
             
 
-def format_2024_data() -> tuple[list[BoxExportData], list[pd.DataFrame]]:
-    """Extracts current box and can data from Notion CSV and MD files, then exports into master CSVs"""
-    md_can_data_dir = SPREADSHEET_DIR / 'LCT_2024/can_data_by_box'
-    try:
-        for file in os.listdir(md_can_data_dir):
-            props, table_data = read_markdown_data(md_can_data_dir / file)
-            props['UID'] = _format_box_uid(file.split())
-            bd = BoxExportData(props)
-            export_box_data(bd)
-            export_can_data(table_data,bd.uid)
-    except KeyError as e:
-        print(f'{e}\n{props}')
-
-    print('Done with extracting and writing')
 
 
