@@ -1,7 +1,7 @@
 from . import ALL_BOX_DATA_DF, ALL_CAN_DATA_DF, DATE_FORMAT, pd, np, datetime, Literal
 from .database import Database
 
-
+database = Database()
 
 class Can(Database): 
     def __init__(self, can_id:str, initial_data:list[str]=None):
@@ -52,9 +52,10 @@ class Can(Database):
         for data_parameter, value in zip(self.CLASS_PARAMS, can_data):
             self.__dict__[data_parameter] = value
         
+        self.fill_can_data()
+
         return
-
-
+    
 
 class Box(Database):
     def __init__(self, box_id:str, initial_data:list[str]=None):
@@ -98,7 +99,12 @@ class Box(Database):
         tts:datetime.timedelta = self._date_time_difference(self.start_date, self.purchase_date)
         return tts.days
 
-    
+    def fill_can_data(self):
+        """Grabs associated can data from DB for reference upon box data retrieval"""
+        conn, curs = self._create_connection()
+        associated_cans = [info[0] for info in curs.execute('SELECT can_id FROM can_data WHERE can_id LIKE ?', (f'%{self.box_id}%',))]
+        self._close_commit(conn)
+        return associated_cans
     
 
         
@@ -129,3 +135,34 @@ def upload_to_db():
         can_obj.db_insert()
     print('done uploading can data to DB')
     return
+
+
+def get_table_property(table: Literal['box_data', 'can_data'], property:Literal['<database column>'], where_row:Literal['<database column>']=None, where_value:str|bool|int=None, count:bool=False):
+    """Search for property from all specimens or specify a specific row"""
+    conn, curs = database._create_connection()
+
+    if where_row:
+        data = [info[0] for info in curs.execute(f'SELECT {property} FROM {table} WHERE {where_row}=?', (where_value,))]
+    else:
+        data = [info[0] for info in curs.execute(f'SELECT {property} FROM {table}')]
+    
+    database._close_commit(conn)
+    
+    if count:
+        return len(data)
+    return data
+
+def get_multiple_table_properties(table: Literal['box_data', 'can_data'], count:bool=False, *properties:list[str], **where_specifiers) -> list[tuple] | int:
+    conn, curs = database._create_connection()
+
+    data = [info for info in curs.execute(f'SELECT {','.join(properties)} FROM {table}')]
+    if where_specifiers:
+        where_data = database._generate_where_stmt(where_specifiers)
+
+        data = [info for info in curs.execute(f'SELECT {','.join(properties)} FROM {table} WHERE {where_data['stmt']}', tuple(where_data['values']))]
+
+    database._close_commit(conn)
+
+    if count:
+        return len(data)
+    return data

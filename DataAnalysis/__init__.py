@@ -35,15 +35,17 @@ def read_csv_data(path_to_data:str):
         data = csv.DictReader(fn)
         return [row for row in data]
 
-def convert_all_box_data():
+def convert_all_box_data(df:bool=False):
     data = read_csv_data(SPREADSHEET_DIR/'all_box_data.csv')
+    if df:
+        return pd.DataFrame(data)
     return data
-    return pd.DataFrame(data)
 
-def convert_all_can_data():
+def convert_all_can_data(df:bool=False):
     data = read_csv_data(SPREADSHEET_DIR / 'all_can_data.csv')
+    if df:
+        return pd.DataFrame(data)
     return data
-    return pd.DataFrame(data)
 
 
 ALL_BOX_DATA_DF = convert_all_box_data()
