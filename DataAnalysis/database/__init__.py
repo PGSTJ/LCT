@@ -2,13 +2,18 @@
 Directory to interface with the Django database 
 """
 import sqlite3 as sl
-from .. import os, logger, traceback, read_json_data, DA_DIR, Literal, datetime, DATE_FORMAT
+from .. import (
+    re, os, logging, traceback, csv, pd, io, 
+    read_json_data, read_csv_data, DA_DIR, Literal, datetime, DATE_FORMAT, SPREADSHEET_DIR, ALT_DATE_FORMAT
+)
 
 # from LCTSite.app.models import BoxTracker, CanData
+logger = logging.getLogger('standard')
 
 DBF = DA_DIR / 'database.db'
 
 DB_TABLE_CONFIG_DATA = read_json_data(DA_DIR / 'database/table_data.json')
+REFERENCE_DATA:list[list[str]] = read_csv_data(DA_DIR / 'database/reference_data.csv', 'list')
 
 class Database():
     def __init__(self) -> None:
@@ -40,7 +45,7 @@ class Database():
         return placeholders[:-1]
     
     def create_tables(self) -> bool:
-        """ Creates Specimen and Slide tables """
+        """ Creates tables listed in table_data.json """
         conn, curs = self._create_connection()
 
         def create_column_script(col_data:list[dict[str, str|bool]]) -> str:
@@ -79,8 +84,7 @@ class Database():
             curs.execute(f'DROP TABLE {table}')
         self._close_commit(conn)
         return self.create_tables()
-    
-        
+            
     @staticmethod
     def _generate_where_stmt(where_filter:dict[Literal['<database column>'], str|bool|int]) -> dict[Literal['stmt', 'values'], str|list[str]]:
         return {
@@ -137,12 +141,40 @@ class Database():
             self._close_commit(conn)
 
 
+    @staticmethod
+    def standardize_date(date_input:str) -> datetime.datetime:
+        if '/' in date_input:
+            return datetime.datetime.strptime(date_input, DATE_FORMAT)
+        return datetime.datetime.strptime(date_input, ALT_DATE_FORMAT)
+
     def _date_time_difference(self, final_date:str, initial_date:str) -> datetime.timedelta:
-        final = datetime.datetime.strptime(final_date, DATE_FORMAT)
-        initial = datetime.datetime.strptime(initial_date, DATE_FORMAT)
+        final = self.standardize_date(final_date)
+        initial = self.standardize_date(initial_date)
         return final - initial 
     
     def display_data(self):
         class_data = {param:self.__dict__[param] for param in self.__dict__ if param in self.CLASS_PARAMS}
         for data in class_data:
             print(f'{data}: {class_data[data]}')
+    
+    @staticmethod
+    def is_value_empty(value) -> bool:
+        if value in ['nan', '', 'NA']:
+            return True
+        return False
+
+
+def standardize_box_id(box_id:str):
+    """Converts box_id to the format '[Flavor]-[Number]'."""
+    # Match format [X][Flavor] (e.g., 10PSF) or [Flavor][X] (e.g., PSF10)
+    match_box = re.match(r"(\d+)([A-Za-z]+)", box_id)
+    match_can = re.match(r"([A-Za-z]+)(\d+)", box_id)
+    
+    if match_box:
+        number, flavor = match_box.groups()
+    elif match_can:
+        flavor, number = match_can.groups()
+    else:
+        raise ValueError(f"Invalid box_id format: {box_id}")
+    
+    return f"{flavor.upper()}-{int(number)}"

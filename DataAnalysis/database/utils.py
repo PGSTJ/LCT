@@ -1,7 +1,9 @@
-from .. import ALL_BOX_DATA_DF, ALL_CAN_DATA_DF, DATE_FORMAT, pd, np, datetime, Literal
-from . import Database
+from .. import datetime, Literal, logging
+from . import Database, csv, os, SPREADSHEET_DIR
 
 database = Database()
+logger = logging.getLogger('standard')
+
 
 class Can(Database): 
     def __init__(self, can_id:str, initial_data:list[str]=None):
@@ -16,12 +18,13 @@ class Can(Database):
         self.percent_remaining_volume:float = 0
 
         if initial_data:
-            self.can_id = f'{initial_data['Can']}.{initial_data['Box']}'
-            self.initial_mass:int = int(initial_data['Initial Mass']) if initial_data['Initial Mass'] != 'nan' else 'NA'
-            self.initial_volume:float = float(initial_data['Initial Volume']) if initial_data['Initial Volume'] != 'nan' else 'NA'
-            self.final_mass:int = int(initial_data['Final Mass']) if initial_data['Final Mass'] != 'nan' else 'NA'
-            self.final_volume:float = float(initial_data['Final Volume']) if initial_data['Final Volume'] != 'nan' else 'NA'
-            self.complete_status:str = initial_data['Finished'] if initial_data['Finished'] != 'nan' else 'NA'
+            s_bid = initial_data['Box']
+            self.can_id = f'{initial_data['Can']}.{s_bid}'
+            self.initial_mass:float = float(initial_data['Initial Mass']) if not self.is_value_empty(initial_data['Initial Mass']) else 'NA'
+            self.initial_volume:float = float(initial_data['Initial Volume']) if not self.is_value_empty(initial_data['Initial Volume']) else 'NA'
+            self.final_mass:float = float(initial_data['Final Mass']) if not self.is_value_empty(initial_data['Final Mass']) else 'NA'
+            self.final_volume:float = float(initial_data['Final Volume']) if not self.is_value_empty(initial_data['Final Volume']) else 'NA'
+            self.complete_status:str = initial_data['Finished'] if not self.is_value_empty(initial_data['Finished']) else 'NA'
 
             self.percent_remaining_mass:float|str = self.calculate_percent_remaining_mass()
             self.percent_remaining_volume:float|str = self.calculate_percent_remaining_volume()
@@ -71,19 +74,20 @@ class Box(Database):
         self.time_to_start:int = 0
 
         if initial_data:
+
             self.flavor:str = initial_data['flavor'] 
             self.purchase_date:str = initial_data['purchase_date']
-            self.price:float|str = float(initial_data['price']) if initial_data['price'] != 'NA' else 'NA'
-            self.location:str = initial_data['location']
-            self.start_date:str = initial_data['started']
-            self.finish_date:str = initial_data['finished']
+            self.price:float|str = float(initial_data['price']) if not self.is_value_empty(initial_data['price']) else 'NA'
+            self.location:str = initial_data['location'] if not self.is_value_empty(initial_data['location']) else 'NA'
+            self.start_date:str = initial_data['started'] if not self.is_value_empty(initial_data['started']) else 'NA'
+            self.finish_date:str = initial_data['finished'] if not self.is_value_empty(initial_data['finished']) else 'NA'
             # replace these with functions to calculate them in python, rather than taking from excel
             # can only caluclate if dates aren't NA
             self.drink_velocity:int|str = self.calculate_drink_velocity()
             self.time_to_start:int|str = self.calculate_time_to_start()
 
     
-        self.cans:list[Can] = []
+        self.cans:list[Can] = self.fill_can_data()
 
         self.CLASS_PARAMS = [name for name in self.__dict__][self._base_class_parameter_amt+1:]
 
@@ -124,20 +128,10 @@ class Box(Database):
         return
 
 
-def upload_to_db():
-    for data in ALL_BOX_DATA_DF:
-        box_obj = Box(data['bid'], data)
-        box_obj.db_insert()
-    print('done uploading box data to DB')
-
-    for data in ALL_CAN_DATA_DF:
-        can_obj = Can(data['Can'], data)
-        can_obj.db_insert()
-    print('done uploading can data to DB')
-    return
 
 
-def get_table_property(table: Literal['box_data', 'can_data'], property:Literal['<database column>'], where_row:Literal['<database column>']=None, where_value:str|bool|int=None, count:bool=False):
+
+def get_table_property(table: Literal['<database table>'], property:Literal['<database column>'], where_row:Literal['<database column>']=None, where_value:str|bool|int=None, count:bool=False):
     """Search for property from all specimens or specify a specific row"""
     conn, curs = database._create_connection()
 
@@ -152,7 +146,7 @@ def get_table_property(table: Literal['box_data', 'can_data'], property:Literal[
         return len(data)
     return data
 
-def get_multiple_table_properties(table: Literal['box_data', 'can_data'], count:bool=False, *properties:list[str], **where_specifiers) -> list[tuple] | int:
+def get_multiple_table_properties(table: Literal['<database table>'], count:bool=False, *properties:list[str], **where_specifiers) -> list[tuple] | int:
     conn, curs = database._create_connection()
 
     data = [info for info in curs.execute(f'SELECT {','.join(properties)} FROM {table}')]
@@ -166,3 +160,35 @@ def get_multiple_table_properties(table: Literal['box_data', 'can_data'], count:
     if count:
         return len(data)
     return data
+
+
+def check_abbreviation_existence(abbreviation:str) -> bool:
+    """Validates whether specified abbreviation exists in reference database"""
+    if abbreviation in get_table_property('reference_data', 'abbreviation'):
+        return True
+    return False
+
+
+
+
+# Quick Views 
+def get_all_boxes() -> list[str]:
+    """Returns list of box IDs"""
+
+
+
+
+def map_to_can(box_box_id:str) -> str | bool:
+    """Maps prior box box id to prior can box id"""
+    with open(os.path.join(SPREADSHEET_DIR, 'boxid_map.csv'), 'r') as fn:
+        hdr = fn.readline().strip().split(',')
+        BOX_ID_MAPPER:list[dict[Literal['box_box_id', 'can_box_id'],str]] = [info for info in csv.DictReader(fn, hdr)]
+        # print(f'BIMR hdr: {hdr}\n{BOX_ID_MAPPER = }')
+
+    formatted_data = {dicts['can_box_bid']:dicts['box_box_id'] for dicts in BOX_ID_MAPPER}
+    logger.debug(f'{ formatted_data = }')
+    if box_box_id in formatted_data:
+        return formatted_data[box_box_id]
+    logger.warning(f'{box_box_id} does not exist in map.') 
+    return False
+

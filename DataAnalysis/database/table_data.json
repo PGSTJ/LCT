@@ -87,5 +87,22 @@
       "data type": "TEXT",
       "foreign key": false
     }
+  ],
+  "reference_data": [
+    {
+      "name": "abbreviation",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "definition",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "type",
+      "data type": "TEXT",
+      "foreign key": false
+    }
   ]
 }
