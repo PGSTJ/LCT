@@ -52,7 +52,7 @@ class Database():
             """ Concatenates column specifiers; only one column apart of entire execute statement """
             try:
                 cols_script:list[str] = [f'{col_specifiers['name']} {col_specifiers['data type'].upper()}' for col_specifiers in col_data]
-                fks:list[str] = [col_specifiers['foreign key'] for col_specifiers in col_data if isinstance(col_specifiers['foreign key'], str)]
+                fks:list = [f'FOREIGN KEY ({data['name']}) REFERENCES {data['foreign key'][0]}({data['foreign key'][1]})' for data in col_data if isinstance(data['foreign key'], list)]
 
                 # PK must be first in list
                 pk = [f'PRIMARY KEY ({col_data[0]['name']})']

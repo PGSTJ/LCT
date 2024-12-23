@@ -1,11 +1,10 @@
 import DataAnalysis as da
-import DataAnalysis.basics
 import DataAnalysis.config as dac
 
 import DataAnalysis.database as dadb
-import DataAnalysis.database
-import DataAnalysis.database.init_sequence as dais
 import DataAnalysis.basics as dab
+import DataAnalysis.database.utils as dadu
+import DataAnalysis.database.init_sequence as dais
 import DataAnalysis.database.pre_processing as ddpp
 
 CAN_DATA_HEADER = [
@@ -18,7 +17,25 @@ CAN_DATA_HEADER = [
     'Box'
 ]
 
+BOX_DATA_HEADER = [
+        'bid',
+        'flavor',
+        'purchase_date',
+        'price',
+        'location',
+        'started',
+        'finished',
+        'DV',
+        'TTS'
+    ]
+
 
 if __name__ == '__main__':
-    dadb.Database()._recreate_tables()
-    dais.run()
+    # dadb.Database()._recreate_tables()
+    # dais.run(fill_data=False)
+
+    
+   ddpp.run_pre_processing()
+
+
+    
