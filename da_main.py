@@ -35,7 +35,6 @@ if __name__ == '__main__':
     # dais.run(fill_data=False)
 
     
-   ddpp.run_pre_processing()
-
+   ddpp.rpp_clean_complete_override()
 
     

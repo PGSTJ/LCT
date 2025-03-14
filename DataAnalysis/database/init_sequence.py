@@ -39,9 +39,11 @@ def upload_reference_data():
     logger.info('Successfully created reference data table')
     database._close_commit(conn)
 
-def run():
-    upload_can_box_data()
+def run(fill_data:bool=True):
     upload_reference_data()
+    if fill_data:
+        upload_can_box_data()
+    return
 
 
 if __name__ == '__main__':

@@ -55,7 +55,9 @@ HEADERS:dict[str,list[str]] = {
 
 }
 
-VERSION = datetime.datetime.now().strftime('%m%d%Y')
+DATE_FORMAT = '%m/%d/%Y'
+FILE_DATE_FORMAT = '%m%d%Y'
+VERSION = datetime.datetime.now().strftime(FILE_DATE_FORMAT)
 
 BOX_ALL_EXPORT = os.path.join(SPREADSHEET_DIR, 'processed', f'all_box_data_{VERSION}.csv')
 BOX_FLAVOR_EXPORT = os.path.join(SPREADSHEET_DIR, 'processed', f'box_by_flavor_{VERSION}.csv')
@@ -72,8 +74,28 @@ class BoxCanBase():
             if info in self.__dict__:
                 self.__dict__[info] = data[info]
         return
+    
+    def _format_dates(self, date_format:str=DATE_FORMAT):
+        """ Ensures dates are the same format - MM/DD/YYYY """
+        def check_date_format(date:str) -> datetime.datetime:
+            if '/' in date:
+                return datetime.datetime.strptime(date, DATE_FORMAT)
+            elif ',' in date: 
+                return datetime.datetime.strptime(date, '%B %d, %Y')
+            elif date == 'NA' or date == '':
+                return None
+            else:
+                raise ValueError(f'Value might not be a date: {date}')
+
+
+        class_dates = {prop:check_date_format(self.__dict__[prop]) for prop in self.__dict__ if 'date' in prop}
+        formatted_dates = {prop:class_dates[prop].strftime(date_format) for prop in class_dates if class_dates[prop] is not None}
+        self._fill_data(formatted_dates)
+        logger.info(f'Updated the date format parameters at {[i for i in formatted_dates]} for {self.id}')
+        return
 
     def display(self):
+        """ Prints key:value description of class attributes """
         for param in self.__dict__:
             print(f'{param}: {self.__dict__[param]}')
         print()
@@ -104,6 +126,7 @@ class BoxFlavorData(BoxCanBase):
         self.finish_date:str = ''
 
         self._fill_data(data)
+        self._format_dates()
 
 class BoxAllData(BoxCanBase):
     def __init__(self, data:dict[str,str]):
@@ -114,6 +137,8 @@ class BoxAllData(BoxCanBase):
         self.og_id:str = ''
 
         self._fill_data(data)
+        self._format_dates()
+        
                 
 class CanData(BoxCanBase):
     def __init__(self, data:dict[str,str]):
@@ -206,7 +231,7 @@ class PreProcessor():
         try:
             return self.box_all_collection[purified_original_box_id].id
         except KeyError:
-            print(f'{purified_original_box_id} does not exist in the box_all collection')
+            logger.error(f'{purified_original_box_id} does not exist in the box_all collection')
         return None
 
     @staticmethod
@@ -224,14 +249,19 @@ class PreProcessor():
         box:BoxAllData = last_changed_box
         if pure_og_bid not in self.box_all_collection:
             box = BoxAllData(box_data)
+            logger.info(f'Created BoxA - og_id: {box.og_id} | bid: {box.id}')
+            logger.debug(f'\tdata: {box_data}')
             self.box_all_collection[pure_og_bid] = box
 
         try:
-            self.box_flavor_collection.append(BoxFlavorData(box_data, box.id))
+            box_f = BoxFlavorData(box_data, box.id)
+            self.box_flavor_collection.append(box_f)
+            logger.info(f'created BoxF - bid: {box_f.box_id} | bfid: {box_f.id}')
+            logger.debug(f'\tbfid {box_f.id} data: {box_f.__dict__}')
         except NameError:
             # TODO convert to logger?
             traceback.print_exc()
-            print(f'Box object has not been created for pure og id: {pure_og_bid}. Ensure this box is created before attempting to create a box-flavor association.')
+            logger.error(f'Box object has not been created for pure og id: {pure_og_bid}. Ensure this box is created before attempting to create a box-flavor association.')
 
         return box if box else None
         
@@ -241,6 +271,7 @@ class PreProcessor():
             return
         updated_cd = self._update_box_id(can_data, pure_og_bid)
         obj_ver_upd_cd = [CanData(data) for data in updated_cd]
+        logger.debug(f'Created {len(obj_ver_upd_cd)} CanData objects for box {pure_og_bid}')
         self._update_saved_can_data(obj_ver_upd_cd, override=False)
         return
 
@@ -311,7 +342,7 @@ class PreProcessor():
         """
         
         class_annotation = self._get_type_annotation()
-        print(f'Started exporting {class_annotation} data')
+        logger.info(f'Started exporting {class_annotation} data')
 
         # export modifier maps- override current/default export file contents/location
         content_override_map:list[str] = self._define_content_overriding(override_existing_content)
@@ -327,7 +358,6 @@ class PreProcessor():
             # override output dst if specified, o/w use default
             metadata['output_file'] = override_output_dst_map[data_collection_type] if data_collection_type in override_output_dst_map else self.source_data_attributes[data_collection_type]['output_file']
             
-            logger.debug(f'{class_annotation:3s}:{data_collection_type:10s} | Final Override Setting: {content_override}')
             formatted_data = self._format_export_data(metadata, override=content_override)
 
             # write to file based on formatted_data
@@ -335,7 +365,7 @@ class PreProcessor():
                 wtr = csv.DictWriter(fn, metadata['headers'], lineterminator='\n')
                 wtr.writerows(formatted_data)
             
-        print(f'Finished exporting {class_annotation} data')
+        logger.info(f'Finished exporting {class_annotation} data to {metadata['output_file']}')
         return
 
     def _define_content_overriding(self, data_collections_to_override:list[Literal['ba','bf','cd', '*']]|bool) -> list[str]:
@@ -364,30 +394,32 @@ class PreProcessor():
         return ex_data
 
     def _format_export_data(self, meta_data:dict[Literal['data', 'headers', 'output_file'], dict|list], override:bool=False) -> list[dict[str,str]]:
-        try:
-            self._format_file(meta_data['output_file'], meta_data['headers'], override=override)
+        self._format_file(meta_data['output_file'], meta_data['headers'], override=override)
 
-            # access data contents differently depending on collection type, can only either be a dict or list
-            data:dict[str, BoxAllData] | list[BoxFlavorData|CanData] = meta_data['data']
-            if isinstance(data, dict):
-                return [data[pure_ogid].write_export_format() for pure_ogid in data]
-            elif isinstance(data, list):
-                return [info.write_export_format() for info in data]
-            else:
-                print(f'CANNOT FORMAT EXPORT DATA DUE TO COLLECTION TYPE {type(data)}')
-                raise # TODO some error due to foreign data collection type (meaning it was altered somewhere)
-        except Exception as e:
-            # TODO format error handling
-            traceback.print_exc()
+        # access data contents differently depending on collection type, can only either be a dict or list
+        data:dict[str, BoxAllData] | list[BoxFlavorData|CanData] = meta_data['data']
+        if isinstance(data, dict):
+            return [data[pure_ogid].write_export_format() for pure_ogid in data]
+        elif isinstance(data, list):
+            return [info.write_export_format() for info in data]
+        else:
+            err_package = {
+                'processor type':self._get_type_annotation(),
+                'collection name': os.path.basename(meta_data["output_file"])[:-13],
+                'collection type': type(data),
+            }
+
+            logger.error(f'CANNOT FORMAT EXPORT DATA FOR {self._get_type_annotation()} DUE TO COLLECTION OF TYPE {type(data)}')
+            raise ValueError(f'Incompatible data collection type. Must be either a dict or a list. \n Collection: {err_package['collection name']} | Current Type: {err_package['collection type']}')
+        # TODO some error due to foreign data collection type (meaning it was altered somewhere)
+
 
     @staticmethod
     def _format_file(output_file_path:str, file_header:list[str], default_mode:str='w', override:bool=False) -> bool:
         """ Validates output file existence and prepares the file if needed """
         if os.path.isfile(output_file_path) and not override:
             default_mode = 'r+'
-        
-        logger.debug(f'INITIAL SETTINGS - OPF path: {output_file_path} | mode: {default_mode} | override: {override}')
-        
+                
         with open(output_file_path, default_mode) as fn:
             wtr = csv.DictWriter(fn, file_header, lineterminator='\n')
             contents = [data for data in csv.DictReader(fn, file_header)] if default_mode != 'w' else []
@@ -495,10 +527,10 @@ class PreProcessCSV(PreProcessor):
 
     def run_pre_processing(self) -> tuple[dict[str,BoxAllData], list[BoxFlavorData], list[CanData]]:
         """ EXECUTION FUNCTION FOR PROCESSING DATA IN CSVs (currently documented as 'prior data') """
-        print('\nStarted processing CSV data')
+        logger.info('Started processing CSV data')
         self._process_box_data()    
         self._process_can_data()
-        print(f'Finished processing CSV data')
+        logger.info(f'Finished processing CSV data')
         return 
 
     def _process_box_data(self):
@@ -512,7 +544,7 @@ class PreProcessCSV(PreProcessor):
             upd_box = self._collect_box_data(pure_og_id, data, box)
             box = upd_box if upd_box is not None else box
         
-        print(f'\tFinished processing box data from CSVs')
+        logger.info(f'Finished processing box data from CSVs')
         return
 
     def _read_box_data(self) -> list[dict[str,str]]:
@@ -527,7 +559,7 @@ class PreProcessCSV(PreProcessor):
             p_og_bid, can_data = self._read_can_data(os.path.join(self.can_data_dir, file))
             self._collect_can_data(can_data, p_og_bid)
 
-        print(f'\tFinished processing can data from CSVs')
+        logger.info(f'Finished processing can data from CSVs')
         return 
 
     def _read_can_data(self, file_path:str) -> tuple[str, list[dict[str, str]]]:
@@ -551,17 +583,18 @@ class PreProcessesMD(PreProcessor):
         super().__init__()
         self.md_data_dir:str = os.path.join(MD_DATA_DIR, 'can_data_by_box')
 
-    def run_pre_processing(self,) -> None:
+    def run_pre_processing(self) -> None:
         """ EXECUTION FUNCTION FOR PROCESSING DATA IN CSVs (currently documented as 'current data') """
-        print('\nStarted processing MD data')
+        logger.info('Started processing MD data')
         box:BoxAllData | None = None
         
         for md_file in os.listdir(self.md_data_dir):
             pure_og_id = self._get_pure_ogid(md_file.split(' ')[0])
             props, table_data = self._read_markdown_data(os.path.join(self.md_data_dir, md_file))
+            logger.debug(f'\nExtracted property data: {props}')
 
             # extract/collect box data
-            formatted_box_properties = self._box_format_converter(props)
+            formatted_box_properties = self._box_header_format_converter(props)
             formatted_box_properties['og_id'] = pure_og_id
             upd_box = self._collect_box_data(pure_og_id, formatted_box_properties, box)
             box = upd_box if upd_box is not None else box
@@ -570,12 +603,13 @@ class PreProcessesMD(PreProcessor):
             formatted_can_data = self._can_format_converter(table_data) # Needs box data to be created as objects for ID
             self._collect_can_data(formatted_can_data, pure_og_id)
 
-        print(f'Finished processing MD data\n')
+        logger.info(f'Finished processing MD data')
         return 
         
     @staticmethod
     def _read_markdown_data(file_path:str) -> tuple[dict[str,str], pd.DataFrame|None]:
-        """Reading the contents of the markdown file to analyze its structure."""
+        """Parses exported Notion Page markdown files into properties and description data; the latter of
+        which is essentially table data given how LCT Notion Pages are designed."""
         with open(file_path, 'r') as file:
             markdown_content = file.read()
 
@@ -604,9 +638,8 @@ class PreProcessesMD(PreProcessor):
 
         return properties, table
 
-    @staticmethod
-    def _box_format_converter(extracted_properties:dict[str,str]) -> dict[str,str]:
-        """ Converts between MD format and current format of box data
+    def _box_header_format_converter(self, extracted_properties:dict[str,str]) -> dict[str,str]:
+        """ Converts from MD header format to DB header format
 
         Only for extracting box data (properties) from Notion export 
         MD files. Property keys need to match current headers for 
@@ -614,15 +647,22 @@ class PreProcessesMD(PreProcessor):
         
         """
         manual:dict[str,str] = {  # keys should match key in extracted_properties
-            'Purchased':'purchase_date'
+            'Purchased':'purchase_date',
+            'Started':'start_date',
+            'Finished':'finish_date'
             } 
 
         ep_formatted = {}
+
+        
         for params in extracted_properties:
             ep_formatted[params.lower()] = extracted_properties[params]
-        for extras in manual:
-            ep_formatted[manual[extras]] = extracted_properties[extras]
-            ep_formatted.pop(extras.lower())
+        try:
+            for extras in manual:
+                ep_formatted[manual[extras]] = extracted_properties[extras]
+                ep_formatted.pop(extras.lower())
+        except KeyError as e:
+            ep_formatted[manual[e.args[0]]] = 'NA'
         
         return ep_formatted
 
@@ -633,6 +673,7 @@ class PreProcessesMD(PreProcessor):
         
         format_dict = data.transpose().to_dict()
         format_dict.pop(0)
+        # list indices (rows) are dicts (len(dict) = # of columns) representing the can data
         collected:list[dict[str,str]] = [format_dict[data] for data in format_dict]
 
         adjusted_header: list[str] = self.source_data_attributes['can_data']['headers'][:-2]
@@ -641,11 +682,11 @@ class PreProcessesMD(PreProcessor):
         # adjusts keys to match current header format
         final = []
         for can in collected:
-            data_only = [can[caninfo] for caninfo in can]
+            header_values = [can[caninfo] if can[caninfo] != '' else 'NA' for caninfo in can] # list of row values with empty spaces converted to 'NA'
 
-            if len(data_only) != len(adjusted_header):
-                raise ValueError(f'Amount of headers ({len(adjusted_header)}) does not match the amount of headers in the extracted data ({len(data_only)})\n{adjusted_header = }\n')
-            final.append(dict(zip(adjusted_header, data_only)))
+            if len(header_values) != len(adjusted_header):
+                raise ValueError(f'Amount of headers ({len(adjusted_header)}) does not match the amount of headers in the extracted data ({len(header_values)})\n{adjusted_header = }\n')
+            final.append(dict(zip(adjusted_header, header_values)))
 
         return final
         
@@ -654,7 +695,18 @@ class PreProcessesMD(PreProcessor):
 
 # RUN_PRE_PROCESSING (RPP) PIPELINES
 def rpp_clean_complete_override():
-    """ EXECUTION FUNCTION for entire pre processing pipeline """
+    """ EXECUTION FUNCTION for entire pre processing pipeline
+    
+    Currently processes all data in the local csv_raw and md_raw directories. Processing
+    entails data extraction from csv or md source data (obtained from Notion Database Table
+    exports) and harmonization to a single csv file for further analysis.
+
+    Exports to the local spreadsheets/processed directory. Each file is unique to the day only,
+    meaning multiple runs on the same day will write to the same file, overriding previous runs 
+    that day. 
+    
+    
+    """
     pp_csv = PreProcessCSV()
     pp_md = PreProcessesMD()
 
@@ -663,6 +715,7 @@ def rpp_clean_complete_override():
     pp_md.run_pre_processing()
     # pp_md.display_run_stats()
 
-    pp_csv.export_data(override_existing_content=['*'])
+    pp_csv.export_data(override_existing_content=['*']) # necessary for the first export to clear what came before
     pp_md.export_data()
+    print(f'Finished processing and exporting CSV and MD data')
     return

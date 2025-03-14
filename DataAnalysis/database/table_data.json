@@ -1,13 +1,25 @@
 {
-  "box_data": [
+  "reference_data": [
     {
-      "name": "box_id",
+      "name": "abbreviation",
       "data type": "TEXT",
       "foreign key": false
     },
     {
-      "name": "flavor",
-      "data type": "VARCHAR(5)",
+      "name": "definition",
+      "data type": "TEXT",
+      "foreign key": false
+    },
+    {
+      "name": "type",
+      "data type": "TEXT",
+      "foreign key": false
+    }
+  ],
+  "boxes_all": [
+    {
+      "name": "box_id",
+      "data type": "VARCHAR(7)",
       "foreign key": false
     },
     {
@@ -17,13 +29,35 @@
     },
     {
       "name": "price",
-      "data type": "VARCHAR(4)",
+      "data type": "VARCHAR(5)",
       "foreign key": false
     },
     {
       "name": "location",
       "data type": "VARCHAR(5)",
       "foreign key": false
+    },
+    {
+      "name": "og_id",
+      "data type": "VARCHAR(5)",
+      "foreign key": false
+    }
+  ],
+  "boxes_flavor": [
+    {
+      "name": "bfid",
+      "data type": "VARCHAR(7)",
+      "foreign key": false
+    },
+    {
+      "name": "box_id",
+      "data type": "VARCHAR(7)",
+      "foreign key": ["boxes_all", "box_id"]
+    },
+    {
+      "name": "flavor",
+      "data type": "VARCHAR(5)",
+      "foreign key": ["reference_data", "abbreviation"]
     },
     {
       "name": "start_date",
@@ -34,16 +68,6 @@
       "name": "finish_date",
       "data type": "VARCHAR(10)",
       "foreign key": false
-    },
-    {
-      "name": "drink_velocity",
-      "data type": "INT",
-      "foreign key": false
-    },
-    {
-      "name": "time_to_start",
-      "data type": "INT",
-      "foreign key": false
     }
   ],
   "can_data": [
@@ -51,6 +75,11 @@
       "name": "can_id",
       "data type": "TEXT",
       "foreign key": false
+    },
+    {
+      "name": "box_id",
+      "data type": "VARCHAR(7)",
+      "foreign key": ["boxes_all", "box_id"]
     },
     {
       "name": "initial_mass",
@@ -84,23 +113,6 @@
     },
     {
       "name": "percent_volume_remaining",
-      "data type": "TEXT",
-      "foreign key": false
-    }
-  ],
-  "reference_data": [
-    {
-      "name": "abbreviation",
-      "data type": "TEXT",
-      "foreign key": false
-    },
-    {
-      "name": "definition",
-      "data type": "TEXT",
-      "foreign key": false
-    },
-    {
-      "name": "type",
       "data type": "TEXT",
       "foreign key": false
     }
