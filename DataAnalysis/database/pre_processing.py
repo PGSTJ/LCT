@@ -175,22 +175,24 @@ DataCollectionType: TypeAlias = dict[Literal['boxes_all','boxes_flavor','can_dat
 class PreProcessor():
     """ Base utility class for pre-processing data 
     
-    Parameters
-
-        box_all_collection : dict {pure_og_id: BoxAllData obj}
+    Parameters:
+        box_all_collection (dict {pure_og_id: BoxAllData}) : 
             Holds data pertaining to boxes_all DB table.
         
-        box_flavor_collection : list [BoxFlavorData obj]
+        box_flavor_collection (list[BoxFlavorData]) : 
             Holds data pertaining to boxes_flavor DB table.
         
-        can_data_collection : list [CanData obj]
+        can_data_collection (list[CanData]) : 
             Holds data pertaining to can_data DB table.
     
     """
 
     
 
-    def __init__(self):
+    def __init__(self, box_source_path:str=None, can_source_path:str=None):
+        self.can_source_path = can_source_path
+        self.box_source_path = box_source_path
+
         self.box_all_collection:dict[str, BoxAllData] = {}
         self.box_flavor_collection:list[BoxFlavorData] = []
         self.can_data_collection:list[CanData] = []
@@ -223,7 +225,7 @@ class PreProcessor():
         for cans in can_data:
             can_num = cans['can_id']
             cans['box_id'] = generated_bid
-            cans['id'] = f'{can_num}.{generated_bid}'
+            cans['id'] = f'{can_num}.{generated_bid}.{generate(size=4)}'
         return can_data
 
     def _get_box_id(self, purified_original_box_id:str) -> str | None:
@@ -246,13 +248,18 @@ class PreProcessor():
 
     def _collect_box_data(self, pure_og_bid:str, box_data:dict[str,str], last_changed_box:BoxAllData=None) -> BoxAllData|None:
         """ Groups box data into one collection as objects """
-        box:BoxAllData = last_changed_box
+        box:BoxAllData = last_changed_box # necessary to pass in box id for flavor record for costco packs
+
+        # create brand new box per og_id existence in final collection
+        # ignores costco packs, which are represented as individual flavors in the file
         if pure_og_bid not in self.box_all_collection:
             box = BoxAllData(box_data)
             logger.info(f'Created BoxA - og_id: {box.og_id} | bid: {box.id}')
             logger.debug(f'\tdata: {box_data}')
             self.box_all_collection[pure_og_bid] = box
 
+        # creates new flavor record, throwing an error if the respective box hasn't been created yet
+        # which technically shouldn't ever happen, unless the box.id was somehow corrupted between box and flavor
         try:
             box_f = BoxFlavorData(box_data, box.id)
             self.box_flavor_collection.append(box_f)
@@ -268,7 +275,9 @@ class PreProcessor():
     def _collect_can_data(self, can_data:list[dict[str,str]], pure_og_bid:str) -> None:
         """ Groups can data into one collection as objects """
         if can_data is None:
+            logger.warning(f'No can data passed for {pure_og_bid}')
             return
+        
         updated_cd = self._update_box_id(can_data, pure_og_bid)
         obj_ver_upd_cd = [CanData(data) for data in updated_cd]
         logger.debug(f'Created {len(obj_ver_upd_cd)} CanData objects for box {pure_og_bid}')
@@ -365,7 +374,7 @@ class PreProcessor():
                 wtr = csv.DictWriter(fn, metadata['headers'], lineterminator='\n')
                 wtr.writerows(formatted_data)
             
-            logger.info(f'Finished exporting {class_annotation} data to {metadata['output_file']}')
+        logger.info(f'Finished exporting {class_annotation} data to {metadata['output_file']}')
         return
 
     def _define_content_overriding(self, data_collections_to_override:list[Literal['ba','bf','cd', '*']]|bool) -> list[str]:
@@ -519,11 +528,25 @@ class PreProcessor():
 
 
 class PreProcessCSV(PreProcessor):
-    """ Pre Processes CSV files (typically older saved data) """
-    def __init__(self):
-        super().__init__()
-        self.box_data_file:str = os.path.join(CSV_DATA_DIR, 'box_data.csv')
-        self.can_data_dir:str = os.path.join(CSV_DATA_DIR, 'can_data_by_box')
+    """ Pre Processes CSV files (typically older saved data) 
+     
+    Default source directories (can and box) are local in ./spreadsheets/CSV
+
+    Parameters:
+        box_source_path (str) :
+            Path to CSV file containing box data. Current default is the local directory ./spreadsheets/csv_raw/box_data.csv
+
+        can_source_path (str) :
+            Path to directory containing CSV files of can data, where each file pertains to a box. Current default is the local
+            directory ./spreadsheets/csv_raw/can_data_by_box
+    
+    """
+    def __init__(self, box_source_path = None, can_source_path = None):
+
+        box_source:str = os.path.join(CSV_DATA_DIR, 'box_data.csv') if box_source_path is None else box_source_path
+        can_source:str = os.path.join(CSV_DATA_DIR, 'can_data_by_box') if can_source_path is None else can_source_path
+        
+        super().__init__(box_source, can_source)
 
     def run_pre_processing(self) -> tuple[dict[str,BoxAllData], list[BoxFlavorData], list[CanData]]:
         """ EXECUTION FUNCTION FOR PROCESSING DATA IN CSVs (currently documented as 'prior data') """
@@ -549,14 +572,14 @@ class PreProcessCSV(PreProcessor):
 
     def _read_box_data(self) -> list[dict[str,str]]:
         """Read box data CSV file"""
-        with open(self.box_data_file, 'r') as fn:
+        with open(self.box_source_path, 'r') as fn:
             fn.readline()
             return [info for info in csv.DictReader(fn, HEADERS['BoxDS'])]
         
     def _process_can_data(self):
         """EXECUTION FUNCTION for processing can data within CSVs"""
-        for file in os.listdir(self.can_data_dir):
-            p_og_bid, can_data = self._read_can_data(os.path.join(self.can_data_dir, file))
+        for file in os.listdir(self.can_source_path):
+            p_og_bid, can_data = self._read_can_data(os.path.join(self.can_source_path, file))
             self._collect_can_data(can_data, p_og_bid)
 
         logger.info(f'Finished processing can data from CSVs')
@@ -564,6 +587,7 @@ class PreProcessCSV(PreProcessor):
 
     def _read_can_data(self, file_path:str) -> tuple[str, list[dict[str, str]]]:
         """Read and format can data from and for CSV"""
+        # The og_id column in CSV box_data is the file name for each can CSV
         original_box_id_purified = self._get_pure_ogid(os.path.basename(file_path)[:-4])
 
         # also overrides file headers with DB compatible versions
@@ -578,19 +602,29 @@ class PreProcessCSV(PreProcessor):
     
 
 class PreProcessesMD(PreProcessor):
-    """ Pre Processes MD files (direct Notion exports) """
-    def __init__(self):
-        super().__init__()
-        self.md_data_dir:str = os.path.join(MD_DATA_DIR, 'can_data_by_box')
+    """ Pre Processes MD files (direct Notion exports) 
+    
+    Currently only supports passing in one directory of MD files containing both
+    can and box source data. This directory should be passed as the "box_source_path"
+    parameter.
+    
+    """
+    def __init__(self, box_source_path = None, can_source_path = None):
+        dir = os.path.join(MD_DATA_DIR, 'can_data_by_box') if box_source_path is None else box_source_path
+        can_source = None
+        
+        super().__init__(dir, can_source)
+
+        
 
     def run_pre_processing(self) -> None:
         """ EXECUTION FUNCTION FOR PROCESSING DATA IN CSVs (currently documented as 'current data') """
         logger.info('Started processing MD data')
         box:BoxAllData | None = None
         
-        for md_file in os.listdir(self.md_data_dir):
+        for md_file in os.listdir(self.box_source_path):
             pure_og_id = self._get_pure_ogid(md_file.split(' ')[0])
-            props, table_data = self._read_markdown_data(os.path.join(self.md_data_dir, md_file))
+            props, table_data = self._read_markdown_data(os.path.join(self.box_source_path, md_file))
             logger.debug(f'\nExtracted property data: {props}')
 
             # extract/collect box data

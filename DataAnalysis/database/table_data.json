@@ -6,7 +6,7 @@
       "foreign key": false
     },
     {
-      "name": "definition",
+      "name": "description",
       "data type": "TEXT",
       "foreign key": false
     },
@@ -24,7 +24,7 @@
     },
     {
       "name": "purchase_date",
-      "data type": "VARCHAR(10)",
+      "data type": "DATE",
       "foreign key": false
     },
     {
@@ -61,12 +61,12 @@
     },
     {
       "name": "start_date",
-      "data type": "VARCHAR(10)",
+      "data type": "DATE",
       "foreign key": false
     },
     {
       "name": "finish_date",
-      "data type": "VARCHAR(10)",
+      "data type": "DATE",
       "foreign key": false
     }
   ],
@@ -102,7 +102,7 @@
       "foreign key": false
     },
     {
-      "name": "complete_status",
+      "name": "finish_status",
       "data type": "VARCHAR(3)",
       "foreign key": false
     },

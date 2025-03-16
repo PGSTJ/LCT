@@ -6,6 +6,7 @@ import DataAnalysis.basics as dab
 import DataAnalysis.database.utils as dadu
 import DataAnalysis.database.init_sequence as dais
 import DataAnalysis.database.pre_processing as ddpp
+# import DataAnalysis.database.pp as ddpp
 
 CAN_DATA_HEADER = [
     'Can',
@@ -35,11 +36,13 @@ DB_DATA_DIR = r'C:\Users\tmalo\Desktop\GitHub\LCT\DataAnalysis\spreadsheets\proc
 
 
 if __name__ == '__main__':
-    # dadb.Database()._recreate_tables()
-    # dais.run(fill_data=False)
+    # ddpp.rpp_clean_complete_override()
+    # dais.run(recreate_tables=True, fill_data=True)
+
+    pds = dadu.get_table_property('boxes_flavor', 'start_date')
+    
 
     
-   ddpp.rpp_clean_complete_override()
     # import os
 
     # d = [os.path.join(DB_DATA_DIR,file) for file in os.listdir(DB_DATA_DIR) if file.endswith('2025.csv')]

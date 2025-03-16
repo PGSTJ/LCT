@@ -1,7 +1,9 @@
 from . import logging, DA_DIR
 
-LOGGING_FILE = DA_DIR / 'all_logs.log'
-ERROR_LOGGING_FILE = DA_DIR / 'error_logs.log'
+LOGS_DIR = DA_DIR / 'logs'
+
+LOGGING_FILE = LOGS_DIR / 'generic.log'
+ERROR_LOGGING_FILE = LOGS_DIR / 'errors.log'
 
 
 LOGGING_CONFIG = {
