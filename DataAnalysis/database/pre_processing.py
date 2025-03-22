@@ -1,12 +1,9 @@
 
 from typing import Literal, TypeAlias
-from nanoid import generate
 import traceback
 
-from . import (
-    logging, csv, os, pd, re, io, traceback, datetime,
-    SPREADSHEET_DIR
-)
+from .. import (logging, csv, os, pd, re, io, traceback, datetime, generate)
+from ..config import SPREADSHEET_DIR
 
 logger = logging.getLogger('standard')
 
@@ -17,15 +14,15 @@ MD_DATA_DIR = os.path.join(SPREADSHEET_DIR, 'md_raw')
 # BoxA and BoxF correspond to box_all and box_flavor database table column format 
 HEADERS:dict[str,list[str]] = {
     "Can": [
-        'can_id',
+        'id',
         'box_id',
         'initial_mass',
         'initial_volume',
         'final_mass',
         'final_volume',
         'finish_status',
-        'percent_mass_remaining',
-        'percent_volume_remaining'
+        # 'percent_mass_remaining',
+        # 'percent_volume_remaining'
     ],
     "BoxDS": [
         'og_id',
@@ -39,14 +36,14 @@ HEADERS:dict[str,list[str]] = {
         'TTS'
     ],
     "BoxA": [
-        'box_id',
+        'id',
         'purchase_date',
         'price',
         'location',
         'og_id'
     ],
     "BoxF": [
-        'bfid',
+        'id',
         'box_id',
         'flavor',
         'start_date',
@@ -102,14 +99,7 @@ class BoxCanBase():
 
     def write_export_format(self) -> dict[str,str]:
         """ Formats data for file export """
-        if isinstance(self, BoxAllData):
-            pk = 'box_id'
-        elif isinstance(self, BoxFlavorData):
-            pk = 'bfid'
-        elif isinstance(self, CanData):
-            pk = 'can_id'
-
-        data = {pk: self.__dict__['id']}
+        data = {'id': self.__dict__['id']}
         values = {info:self.__dict__[info] for info in self.__dict__ if info not in ['output_file', 'id']}
         data.update(values)
         
@@ -143,7 +133,7 @@ class BoxAllData(BoxCanBase):
 class CanData(BoxCanBase):
     def __init__(self, data:dict[str,str]):
         super().__init__(data)
-        self.id = data['can_id']
+        self.id = data['id']
         self.box_id:str = ''
         self.initial_mass:int = 0
         self.initial_volume:float = 0.0
@@ -153,8 +143,8 @@ class CanData(BoxCanBase):
         
         self._fill_data(data) # need to fill data before PR calculations
 
-        self.percent_mass_remaining:float | None = self.calculate_percentage_remaining(self.initial_mass, self.final_mass)
-        self.percent_volume_remaining:float | None = self.calculate_percentage_remaining(self.initial_volume, self.final_volume)
+        # self.percent_mass_remaining:float | None = self.calculate_percentage_remaining(self.initial_mass, self.final_mass)
+        # self.percent_volume_remaining:float | None = self.calculate_percentage_remaining(self.initial_volume, self.final_volume)
 
 
     # TODO Will likely take this out and calculate during a pre-processing calculation stage
@@ -223,7 +213,7 @@ class PreProcessor():
         """ Updates can id with formatted id and adds column for generated box id, mapped from the original box id """
         generated_bid = self._get_box_id(original_box_id)
         for cans in can_data:
-            can_num = cans['can_id']
+            can_num = cans['id']
             cans['box_id'] = generated_bid
             cans['id'] = f'{can_num}.{generated_bid}.{generate(size=4)}'
         return can_data
@@ -365,14 +355,17 @@ class PreProcessor():
 
             content_override = True if data_collection_type in content_override_map else False
             # override output dst if specified, o/w use default
-            metadata['output_file'] = override_output_dst_map[data_collection_type] if data_collection_type in override_output_dst_map else self.source_data_attributes[data_collection_type]['output_file']
+            metadata['output_file'] = override_output_dst_map[data_collection_type] if data_collection_type in override_output_dst_map else metadata['output_file']
             
             formatted_data = self._format_export_data(metadata, override=content_override)
 
-            # write to file based on formatted_data
-            with open(metadata['output_file'], 'a') as fn:
-                wtr = csv.DictWriter(fn, metadata['headers'], lineterminator='\n')
-                wtr.writerows(formatted_data)
+            try:
+                # write to file based on formatted_data
+                with open(metadata['output_file'], 'a') as fn:
+                    wtr = csv.DictWriter(fn, metadata['headers'], lineterminator='\n')
+                    wtr.writerows(formatted_data)
+            except Exception as e:
+                print(f'{e}\n{formatted_data = }')
             
         logger.info(f'Finished exporting {class_annotation} data to {metadata['output_file']}')
         return
@@ -710,8 +703,9 @@ class PreProcessesMD(PreProcessor):
         # list indices (rows) are dicts (len(dict) = # of columns) representing the can data
         collected:list[dict[str,str]] = [format_dict[data] for data in format_dict]
 
-        adjusted_header: list[str] = self.source_data_attributes['can_data']['headers'][:-2]
-        adjusted_header.remove('box_id')
+        adjusted_header: list[str] = self.source_data_attributes['can_data']['headers']
+        if 'box_id' in adjusted_header:
+            adjusted_header.remove('box_id')
 
         # adjusts keys to match current header format
         final = []
@@ -728,10 +722,7 @@ class PreProcessesMD(PreProcessor):
 
 
 # RUN_PRE_PROCESSING (RPP) PIPELINES
-def rpp_clean_complete_override(
-        display_run_stats:bool = False,
-        to_db:bool = False,
-):
+def rpp_clean_complete_override(display_run_stats:bool = False):
     """ EXECUTION FUNCTION for entire pre processing pipeline
     
     Currently processes all data in the local csv_raw and md_raw directories. Processing

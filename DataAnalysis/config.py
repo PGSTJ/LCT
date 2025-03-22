@@ -1,7 +1,19 @@
-from . import logging, DA_DIR
+from . import logging, pathlib
+
+
+DATE_FORMAT = '%m/%d/%Y' # default date format
+ALT_DATE_FORMAT = '%B %d, %Y'
+
+DA_DIR = pathlib.Path(__file__).parent
+
+SPREADSHEET_DIR = DA_DIR / 'spreadsheets'
+DATABASE_DIR = DA_DIR / 'database'
+
+DB_DIR = DA_DIR / 'databases'
+DB_CONFIG_DIR = DA_DIR / 'database/config_sheets'
+
 
 LOGS_DIR = DA_DIR / 'logs'
-
 LOGGING_FILE = LOGS_DIR / 'generic.log'
 ERROR_LOGGING_FILE = LOGS_DIR / 'errors.log'
 

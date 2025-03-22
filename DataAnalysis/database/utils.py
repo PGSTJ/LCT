@@ -1,21 +1,41 @@
-from .. import datetime, Literal, logging
-from . import (read_csv_data, read_json_data, csv, os, traceback,
-               SPREADSHEET_DIR, DA_DIR, DATE_FORMAT, ALT_DATE_FORMAT)
+from .. import datetime, Literal, logging, csv, os, traceback, pd
+from ..config import SPREADSHEET_DIR, DATE_FORMAT, ALT_DATE_FORMAT, DB_CONFIG_DIR, DB_DIR
+from ..utils import read_csv_data, read_json_data
 
 import sqlite3 as sl
 
 logger = logging.getLogger('standard')
 
-DBF = DA_DIR / 'database.db'
-DB_TABLE_CONFIG_DATA = read_json_data(DA_DIR / 'database/table_data.json')
+
+
+
+
+
+
+DB_TABLE_CONFIG_DATA = {}
+
 
 class Database():
-    def __init__(self) -> None:
-        self.db_loc = os.path.abspath(DBF)
-        self.tables:list[str] = [tablename for tablename in DB_TABLE_CONFIG_DATA]
+    def __init__(
+            self,
+            database_name:str,
+            database_registry,
+            *,
+            table_data:list[dict[str,str]]=None
+    ) -> None:
+        self.db_loc = os.path.join(DB_DIR, f'{database_name}.db')
+        self.database_name = database_name
+        self.table_data:dict[str, list[dict[str,str]]] = table_data
+        self.tables:dict[str,str|list[str]] = {}
+        
         self.box_table = 'box_data'
         self.can_table = 'can_data'
-        self._base_class_parameter_amt:int = len(self.__dict__)
+        self._base_class_parameter_amt:int = len(self.__dict__)       
+
+        database_registry.add_instance(self)
+
+    def __repr__(self):
+        return f'{self.database_name} Database'
 
     def create_connection(self) -> tuple[sl.Connection, sl.Cursor]:
         """ Creates/Returns a connection and cursor """
@@ -29,42 +49,57 @@ class Database():
         connection.close()
         return
 
-        
-    def _parameter_data(self, table:str) -> list[str]:
+    
+    # TODO essentially replaced with self.tables[<table_name>]['headers']
+    def _parameter_data(self, table_name:str) -> list[str]:
         """ For DB inserts or user interest """
-        return [specifier['name'] for specifier in DB_TABLE_CONFIG_DATA[table]]
+        return [specifier['name'] for specifier in self.tables[table_name]]
 
     def _parameter_placeholders(self, parameters: list[str]) -> str:
         """ DB insert placeholders """
         placeholders = '?,' * len(parameters)
         return placeholders[:-1]
     
+    def add_table_data(self, data:dict[str, list[dict[str,str]]]):
+        """ Adds table data to instance """
+        assert isinstance(data, dict), 'Must supply dictionary containing table data'
+        for tblnm in data:
+            assert isinstance(data[tblnm], list), f'Dictionary must contain list values, not {type(data[tblnm])}'
+        
+        self.table_data = data
+        return
+        
+
+    
     def create_tables(self) -> bool:
         """ Creates tables listed in table_data.json """
+        assert isinstance(self.table_data, dict), 'Must supply table data to create tables'
+        
         conn, curs = self.create_connection()
 
         def create_column_script(col_data:list[dict[str, str|bool]]) -> str:
             """ Concatenates column specifiers; only one column apart of entire execute statement """
             try:
-                cols_script:list[str] = [f'{col_specifiers['name']} {col_specifiers['data type'].upper()}' for col_specifiers in col_data]
-                fks:list = [f'FOREIGN KEY ({data['name']}) REFERENCES {data['foreign key'][0]}({data['foreign key'][1]})' for data in col_data if isinstance(data['foreign key'], list)]
+                cols_script:list[str] = [f'{col_specifiers['header']} {col_specifiers['header_data_type'].upper()}' for col_specifiers in col_data]
+                fks:list = [f'FOREIGN KEY ({data['header']}) REFERENCES {data['foreign_key'][0]}({data['foreign_key'][1]})' for data in col_data if isinstance(data['foreign_key'], list)]
 
                 # PK must be first in list
-                pk = [f'PRIMARY KEY ({col_data[0]['name']})']
+                pk = [f'PRIMARY KEY ({col_data[0]['header']})']
 
-                if len(fks) > 1:
+                if len(fks) > 0:
                     return (', ').join(cols_script + pk + fks)
                 return (', ').join(cols_script + pk)
             except Exception as e:
                 traceback.print_exc()
                 logger.error(f'Error creating column script for DB table: {col_data}')
-        
-        # TODO: reference table creation config variables come from CSV
+
         try:
-            for table_name in DB_TABLE_CONFIG_DATA:
-                col_script = create_column_script(DB_TABLE_CONFIG_DATA[table_name])
+            for table_name in self.table_data:
+                self.tables[table_name] = {'headers':[i['header'] for i in self.table_data[table_name]]}
+                col_script = create_column_script(self.table_data[table_name])
                 curs.execute(f'CREATE TABLE IF NOT EXISTS {table_name}({col_script})')
             # curs.execute('ALTER TABLE all_slides ADD CONSTRAINT specimen_id_fk FOREIGN KEY (specimen_aperio_id) REFERENCES specimens(aperio_id)')
+            logger.info(f'Created tables {self.tables.keys()}')
             self.close_commit(conn)
             return True
         except sl.OperationalError as e:
@@ -159,6 +194,128 @@ class Database():
         if value in ['nan', '', 'NA']:
             return True
         return False
+
+
+
+class DatabaseRegistry:
+    """ Global registry where database instances are stored """
+    _instances:dict[str,Database] = {}
+
+    @classmethod
+    def add_instance(cls, dbi:Database):
+        """Retrieve an existing database instance or create a new one."""
+
+        if dbi.database_name not in cls._instances:
+            cls._instances[dbi.database_name] = dbi
+            logger.info(f'Added new database ({dbi.database_name}) to global registry')
+            return
+        logger.warning(f'Database ({dbi.database_name}) instance already exists in the global registry')
+
+        return
+    
+    @classmethod
+    def get_instance(cls, db_name:str) -> Database:
+        assert db_name in cls._instances.keys(), f'Database Name ({db_name}) doesnt exist in the global registry'
+        return cls._instances[db_name]
+
+    @classmethod
+    def update_instance(cls, dbi:Database):
+        """ Updates existing instance with new instance at the database name, or adds new instance to registry """
+        if dbi.database_name in cls._instances:
+            cls._instances[dbi.database_name] = dbi
+            logger.info(f'Updated database {dbi.database_name} instance in the global registry')
+        else:
+            cls._instances[dbi.database_name] = dbi
+            logger.info(f'Database Name ({dbi.database_name}) was not found in the global registry, but was added')
+        return
+    
+    @classmethod
+    def remove_instance(cls, db_name:str):
+        """ Removes a database instance from the global registry by database name """
+        assert db_name in cls._instances, f'Database Name ({db_name}) doesnt exist in the registry'
+        cls._instances.pop(db_name)
+        logger.info(f'Removed database {db_name} from the global registry')
+        return
+    
+    @classmethod
+    def get_all_instances(cls) -> dict[str,Database]:
+        return cls._instances
+    
+    @classmethod
+    def _reset_all_db_tables(cls):
+        for dbn, dbi in cls._instances.items():
+            dbi._recreate_tables()
+            logger.info(f'Reset tables in {dbn}.db')
+        return
+
+
+dbr = DatabaseRegistry()
+
+def process_db_config():
+    """ Processes the database config data in the config_sheets directory """
+    db_config_data_file = DB_CONFIG_DIR / 'db_data.csv'
+    db_config_data_df = pd.read_csv(db_config_data_file)
+    formatted_db_config = _format_db_config(db_config_data_df)
+
+    for database_name,table_data in formatted_db_config.items():
+        db_table_data = _process_table_data(table_data)
+        dbo = Database(database_name=database_name, database_registry=dbr, table_data=db_table_data)
+        dbo.create_tables()
+
+
+    return 
+
+def _process_table_data(table_data:dict[str, pd.DataFrame], print_formatted_config:bool = False):
+    """ DB Config helper function that handles table data extraction """
+
+    all_tables = {}
+    
+    for table_name, table_df in table_data['table_order_map'].items():
+        if print_formatted_config:
+            print(f'{table_name}\n\n\t{table_name}\n\t\t{table_df}\n')
+
+        # removes database and table name from DF
+        table_config_only = table_df[['header', 'header_data_type', 'foreign_key']]
+        
+        tbl_cnfg_dct = table_config_only.to_dict(orient='records')
+        tb_cfg_dct_formatted_fk = _extract_foreign_key(tbl_cnfg_dct) # same as above but with FK formatted as bool or list
+        all_tables[table_name] = tb_cfg_dct_formatted_fk
+    
+    return all_tables
+
+def _extract_foreign_key(config_data:list[dict[str,str]]):
+    for info in config_data:
+        if ';' in info['foreign_key']:
+            value = info['foreign_key'].split(';')
+        else: 
+            value = False
+        config_data[config_data.index(info)]['foreign_key'] = value
+    return config_data
+
+def _format_db_config(data:pd.DataFrame) -> dict[str, dict[str,dict[str,pd.DataFrame]]]:
+    """ Restructures table config data preserving the original order of database name, table name, and header """
+    # get ordered database name in correct creation order 
+    # final form will be an ordered db config map with preserved database name,
+    # table name, and header (in that priority as well) as ordered in the CSV
+    db_order = {i:{} for i in data['database_name'].to_list()}
+
+    for databasename,dbdf in data.groupby('database_name'):
+        db_order[databasename]['tables_unordered'] = dbdf
+        db_order[databasename]['table_order_map'] = _sort_grouping_per_csv(data.loc[data['database_name'] == databasename]['table_name'])
+    
+    for _,tables_dict in db_order.items():
+        for tablename,tbdf in tables_dict['tables_unordered'].groupby('table_name'):
+            tables_dict['table_order_map'][tablename] = tbdf
+        tables_dict.pop('tables_unordered')
+    
+    return db_order
+
+
+def _sort_grouping_per_csv(data:pd.Series) -> dict[str,None]:
+    """ Extracts unique values from a pd.Series while retaining its original order as presented in the CSV """
+    return {i:{} for i in data.to_list()}
+
+
 
 
 class Can(Database): 
@@ -285,7 +442,7 @@ class Box(Database):
 
 
 
-database = Database()
+database = None
 
 def get_table_property(table: Literal['<database table>'], property:Literal['<database column>'], where_row:Literal['<database column>']=None, where_value:str|bool|int=None, count:bool=False):
     """Search for property from all specimens or specify a specific row"""

@@ -36,11 +36,9 @@ DB_DATA_DIR = r'C:\Users\tmalo\Desktop\GitHub\LCT\DataAnalysis\spreadsheets\proc
 
 
 if __name__ == '__main__':
-    # ddpp.rpp_clean_complete_override()
-    # dais.run(recreate_tables=True, fill_data=True)
-
-    pds = dadu.get_table_property('boxes_flavor', 'start_date')
-    
+    ddpp.rpp_clean_complete_override()
+    pds = dadu.process_db_config()
+    dais.run(recreate_tables=True, fill_data=True)
 
     
     # import os

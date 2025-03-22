@@ -1,0 +1,28 @@
+abbreviation,description,type
+PSF,Passionfruit,flavor
+GSP,Guava Sao Paulo,flavor
+PLM,Plum,flavor
+LM,Lime,flavor
+LMN,Lemon,flavor
+BP,Beach Plum,flavor
+BRB,Black Razzberry,flavor
+CL,Cerise Limon,flavor
+MP,Mure Pepino,flavor
+PF,Pina Fraise,flavor
+PQ,Pasteque,flavor
+MJ,Mojito,flavor
+MG,Mango,flavor
+SP,Strawberry Peach,flavor
+SMP,Summer Pack,costco_pack
+CMC,Commencement Pack,costco_pack
+TGT,Target,location
+CCO,Costco,location
+F4L,Food 4 Less,location
+RPH,Ralphs,location
+SUP,Superior,location
+VON,Vons,location
+WLG,Walgreens,location
+JON,Jons,location
+Y,Yes,admin_can_status
+N,No,admin_can_status
+S,Sliver,admin_can_status
