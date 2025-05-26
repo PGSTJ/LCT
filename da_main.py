@@ -8,28 +8,6 @@ import DataAnalysis.database.init_sequence as dais
 import DataAnalysis.database.pp_recover as ddpp
 # import DataAnalysis.database.pp as ddpp
 
-CAN_DATA_HEADER = [
-    'Can',
-    'Initial Mass',
-    'Initial Volume',
-    'Final Mass',
-    'Final Volume',
-    'Finished',
-    'Box'
-]
-
-BOX_DATA_HEADER = [
-        'bid',
-        'flavor',
-        'purchase_date',
-        'price',
-        'location',
-        'started',
-        'finished',
-        'DV',
-        'TTS'
-    ]
-
 
 import os
 DB_DATA_DIR = r'C:\Users\tmalo\Desktop\GitHub\LCT\DataAnalysis\spreadsheets'
@@ -37,6 +15,7 @@ DB_DATA_DIR = r'C:\Users\tmalo\Desktop\GitHub\LCT\DataAnalysis\spreadsheets'
 LCD = r'C:\Users\tmalo\Desktop\La Croix Data'
 CDD = os.path.join(LCD, 'csv_raw')
 MDD = os.path.join(LCD, 'md_raw')
+
 
 if __name__ == '__main__':
     # ddpp.rpp_clean_complete_override()
@@ -57,27 +36,18 @@ if __name__ == '__main__':
     # pp.export_to_file()
 
 
-    # NOTE testing recovered implementation
+    # NOTE new implementation
 
-    bd = pp.run_pre_processing(csv_data_dir=CDD, md_data_dir=MDD)
+    pp.run_pre_processing(csv_data_dir=CDD, md_data_dir=MDD)
     
+    # print(pp.source_data_attributes['boxes_all']['data'], end='\n\n\n')
+    # print(pp.source_data_attributes['boxes_flavor']['data'], end='\n\n\n')
+    # print(pp.source_data_attributes['can_data']['data'], end='\n\n\n')
 
-    cdbb = os.path.join(CDD, 'can_data_by_box')
-    # print(f'original len: {len(bd)}')        
-    # print(f'bfdf len: {len(bfdf)}')
-    # print(bfdf)
-    # files = [f[:-4] for f in os.listdir(cdbb)]
-    # missing = [n for n in bd['og_id'] if n not in files]
-    # print(len([k for k,_ in cd.items()]))
-    # TODO need to track boxes without can data to avoid validation errors
-    
-    # NOTE testing can data box extraction
-    
-    
-    bad = pp.source_data_attributes['boxes_all']['data']
-    bfd = pp.source_data_attributes['boxes_flavor']['data']
+    pp.source_data_attributes['boxes_all']['data'].info()
+    pp.source_data_attributes['boxes_flavor']['data'].info()
+    pp.source_data_attributes['can_data']['data'].info()
 
-    
     
 
 

@@ -38,11 +38,11 @@ class PreProcessor:
     """Base utility class for pre-processing data using pandas DataFrames."""
 
     def __init__(self):
-        self.extracted_box_data:list[pd.DataFrame] = []
-
+        self.id_map:dict[str, dict[Literal['purchase id', 'flavor id'], str]] = {} # maps og_id to purchase and flavor ids
 
         # transient tracking attributes
-        self.processed_pure_ids:list[str] = []
+        self.extracted_box_data:list[pd.DataFrame] = []
+        self.extracted_can_data:dict[str, pd.DataFrame] = {}
 
         self.box_all_df = pd.DataFrame(columns=HEADERS['BoxA'])
         self.box_flavor_df = pd.DataFrame(columns=HEADERS['BoxF'])
@@ -78,24 +78,26 @@ class PreProcessor:
         assert csv_data_dir or md_data_dir, f'Must supply at least one directory to process'
         
         if csv_data_dir:
-            box_data_df, can_data_dfs = self.extract_csv_data(csv_data_dir)
+            box_data_df, can_data_dfs = self._extract_csv_data(csv_data_dir)
             self.extracted_box_data.append(box_data_df)
+            self.extracted_can_data.update(can_data_dfs)
 
         if md_data_dir:
-            box_data_df, can_data_dfs = self.extract_md_data(md_data_dir)
+            box_data_df, can_data_dfs = self._extract_md_data(md_data_dir)
             self.extracted_box_data.append(box_data_df)
+            self.extracted_can_data.update(can_data_dfs)
         
         all_box_data = pd.concat(self.extracted_box_data, ignore_index=True)
 
         self._process_box_data(all_box_data)
+        self._process_can_data()
+
         return
 
-        for og_id, can_data_df in can_data_dfs.items():
-            self._process_can_data(can_data_df)
 
     
-    def extract_csv_data(self, data_dir:str) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
-        """ Extract box/can data from CSV files
+    def _extract_csv_data(self, data_dir:str) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+        """ Extract box/can data from CSV files and normalizes format
         
         Returns
         -------
@@ -109,15 +111,16 @@ class PreProcessor:
         norm_box_data_df = self._normalize_box_df(box_data_df, type='csv')
 
 
-        can_data_dfs = {file[:-4]:pd.read_csv(os.path.join(can_data_path, file)) for file in os.listdir(can_data_path)}
+        can_data_dfs = {file[:-4]:self._normalize_can_df(pd.read_csv(os.path.join(can_data_path, file)), 'csv') for file in os.listdir(can_data_path)}
 
         return norm_box_data_df, can_data_dfs
 
-
-    def extract_md_data(self, md_data_dir:str) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
-        """ Extract box/can data from MD files
+    def _extract_md_data(self, md_data_dir:str) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+        """ Extract box/can data from MD files and normalizes format
         
-
+        Returns
+        -------
+            Tuple of box and can data, where box data is a Dataframe and can data is a DataframeGroupBy collection
         
         """
         all_data = os.path.join(md_data_dir, 'can_data_by_box')
@@ -135,52 +138,52 @@ class PreProcessor:
             formatted_box_properties['og_id'] = og_id
             box_data_dicts.append(formatted_box_properties)
 
-            can_data_dict[og_id] = table_data
+            if table_data is not None:
+                norm_can_df = self._normalize_can_df(table_data, 'md')
+            else:
+                norm_can_df = table_data
+                logger.warning(f'No can data for {og_id}')
 
-            # upd_box = self._collect_box_data(base_og_id, formatted_box_properties, box)
-            # box = upd_box if upd_box is not None else box
-
-            # # extract/collect can data for this box
-            # formatted_can_data = self._can_format_converter(table_data) # Needs box data to be created as objects for ID
-            # self._collect_can_data(formatted_can_data, base_og_id)
+            can_data_dict[og_id] = norm_can_df
 
         box_df = pd.DataFrame(box_data_dicts)
         norm_box_df = self._normalize_box_df(box_df, 'md')
 
-
-
         return norm_box_df, can_data_dict
 
-
-
-    def _process_box_data(self, box_data_df:pd.DataFrame):
-        
+    def _process_box_data(self, box_data_df:pd.DataFrame):        
         # extract/format box_all data
         all_badf = []
         
-        for base_og_id, df in box_data_df.groupby('base_og_id'):        
+        for base_og_id, df in box_data_df.groupby('base_og_id'):   
+            box_id = generate(size=7)     
             intermediate_ba_df = df[['purchase_date', 'price', 'location']].drop_duplicates() # TODO add column extraction to dedicated CONSTANT file
             intermediate_ba_df.insert(0, 'base_og_id', base_og_id)
-            intermediate_ba_df.insert(0, 'id', generate(size=7))
+            intermediate_ba_df.insert(0, 'id', box_id)
             all_badf.append(intermediate_ba_df)
+
             
         box_all_df = pd.concat(all_badf, ignore_index=True)
+        self.resolve_dtypes(box_all_df)
+        self.source_data_attributes['boxes_all']['data'] = box_all_df
+
 
         # extract/format box_flavor data
-        bf_df = box_data_df[['base_og_id', 'flavor', 'start_date', 'finish_date']] # TODO add column extraction to dedicated CONSTANT file
+        bf_df = box_data_df[['og_id', 'base_og_id', 'flavor', 'start_date', 'finish_date']] # TODO add column extraction to dedicated CONSTANT file
 
         # get box id from ba df based on poi, inserted at beginning
-        bf_df.insert(0, 'box_id', bf_df['base_og_id'].apply(lambda x:self._get_box_id(df=box_all_df, purified_original_box_id=x)))
+        bf_df.insert(0, 'box_id', bf_df['base_og_id'].apply(lambda x:self._get_box_id(df= box_all_df, base_original_box_id=x)))
         bf_df.insert(0, 'id', [generate(size=7) for _ in range(len(bf_df))])
         # bf_df['has_cans'] = False # TODO add column to headers for DB insertion
         bf_df.insert(len(bf_df.columns), 'has_cans', False) # TODO add column to headers for DB insertion
 
-        box_flavor_df = bf_df.drop(columns=['base_og_id'])
+        # create id map before dropping unnecessary cols for box flavor DF
+        ids_to_delete = ['og_id', 'base_og_id']
+        self._create_id_map(bf_df[ids_to_delete+['id']], box_all_df[['id', 'base_og_id']])
 
-        self.resolve_dtypes(box_all_df)
+        box_flavor_df = bf_df.drop(columns=ids_to_delete)
+
         self.resolve_dtypes(box_flavor_df)
-
-        self.source_data_attributes['boxes_all']['data'] = box_all_df
         self.source_data_attributes['boxes_flavor']['data'] = box_flavor_df
 
         logger.info(f'Successfully created and saved box dataframes')
@@ -188,13 +191,36 @@ class PreProcessor:
 
         return
 
-
-    def _process_can_data(self, base_og_id:str, can_data_df:pd.DataFrame):
+    def _process_can_data(self):
         """
         
         """
+        all_flavors:pd.DataFrame = self.source_data_attributes['boxes_flavor']['data']
 
+        processed_data = []
+        for og_id, df in self.extracted_can_data.items():
+            if df is None:
+                continue
 
+            # mark box as having cans
+            flavor_id = self.id_map[og_id]['flavor id']
+            row = all_flavors[all_flavors['id']==flavor_id].index[0]
+            all_flavors.loc[row, 'has_cans'] = True
+
+            # values for two missing can data df columns
+            all_ids = self.id_map[og_id] # TODO REALLY IMPORTANT !!!! CHANGE "ALL" NOMENCLATURE TO "PURCHASE" FOR CLARITY
+            id_col = df['Can'].apply(lambda x:f'{all_ids["purchase id"]}.{x}')
+            
+            df.insert(0, 'box_id', flavor_id)
+            df.insert(0, 'id', id_col)
+            df = df.drop(columns=['Can'])
+            final_df = self.resolve_dtypes(df)
+            processed_data.append(final_df)
+
+        
+        self.source_data_attributes['can_data']['data'] = pd.concat(processed_data, ignore_index=True)
+        return
+            
 
     def _normalize_box_df(self, box_df:pd.DataFrame, type:Literal['md', 'csv']):
         """ Ensures extracted box df headers and format from each source are the same """
@@ -215,24 +241,56 @@ class PreProcessor:
         
 
         return box_df
+    
+    @staticmethod # NOTE for now
+    def _normalize_can_df(can_df:pd.DataFrame, type:Literal['md', 'csv']):
+        """ Ensures extracted can df headers and format from each source are the same """
+        hdrs_to_rename = can_df.columns.to_list()
+        hdr_map = dict(zip(hdrs_to_rename[1:], HEADERS['Can'][2:]))
+        can_df = can_df.rename(columns=hdr_map)
+
+        if type == 'md':
+            can_df = can_df.drop(index=0) # artifact from MD table notation
+
+        return can_df
 
     @staticmethod
     def resolve_dtypes(df:pd.DataFrame):
 
         for col in df.columns:
             if col == 'price':
-                df['price'] = df['price'].astype('float32')
+                df['price'] = df['price'].astype('float16')
             elif 'date' in col:    
                 df[col] = pd.to_datetime(df[col])
             elif df[col].dtype == 'bool':
                 continue
+            elif 'mass' in col or 'volume' in col:
+                df[col] = df[col].astype('float16')
             else:
                 df[col] = df[col].astype('string')
         return df
 
+    def _create_id_map(self, ids_from_bf:pd.DataFrame, ids_from_ba:pd.DataFrame):
+        """ Maps the og id to generated box all (purchase) and flavor ids 
+        
+        Nested dictionary keys are "<flavor/purchase> id"
+        
+        
+        """
+        
+        for id in ids_from_bf['og_id'].to_list():
+            row = ids_from_bf[ids_from_bf['og_id']==id].to_dict(orient='records')[0]
+            self.id_map[row['og_id']] = {'flavor id':row['id']}
 
+        for ogid in self.id_map:
+            base = self._get_base_ogid(ogid)
+            ba_id = ids_from_ba[ids_from_ba['base_og_id']==base]['id'].to_list()[0]
+            self.id_map[ogid]['purchase id'] = ba_id
 
+        logger.info('Created ID map ')
 
+        return
+            
     @staticmethod
     def _get_base_ogid(full_og_id: str) -> str:
         """Extracts the pure original ID from the full ID."""
@@ -240,72 +298,13 @@ class PreProcessor:
         number, flavor = match_ogid.groups()
         return number + flavor
 
-    def _update_box_id(self, can_data: pd.DataFrame, original_box_id: str) -> pd.DataFrame:
-        """Updates can IDs with formatted IDs and adds a column for generated box IDs."""
-        generated_bid = self._get_box_id(original_box_id)
-        can_data['box_id'] = generated_bid
-        can_data['id'] = can_data['id'].apply(lambda x: f"{x}.{generated_bid}.{generate(size=4)}")
-        return can_data
-
-    def _get_box_id(self, df:pd.DataFrame, purified_original_box_id: str) -> str | None:
+    def _get_box_id(self, df:pd.DataFrame, base_original_box_id: str) -> str | None:
         """Gets the generated box ID from the collection."""
         try:
-            return df.loc[df['base_og_id'] == purified_original_box_id, 'id'].values[0]
+            return df.loc[df['base_og_id'] == base_original_box_id, 'id'].values[0]
         except IndexError:
-            logger.error(f"{purified_original_box_id} does not exist in the box_all collection")
+            logger.error(f"{base_original_box_id} does not exist in the box_all collection")
             return None
-        
-
-    def _process_can_data_ddd(self) -> None:
-        """Processes can data from CSV files."""
-        for file in os.listdir(self.can_source_path):
-            file_path = os.path.join(self.can_source_path, file)
-            can_data = pd.read_csv(file_path)
-            base_og_id = self._get_base_ogid(os.path.basename(file)[:-4])
-            self._collect_can_data(can_data, base_og_id)
-
-    def _collect_box_data(self, pure_og_bid: str, box_data: dict[str, str]) -> None:
-        """Adds box data to the box_all_df and box_flavor_df DataFrames."""
-        if pure_og_bid not in self.processed_pure_ids:
-            self.processed_pure_ids.append(pure_og_bid)
-            box_data.update({'id':generate(size=7)})
-            self.box_all_df = pd.concat([self.box_all_df, pd.DataFrame([box_data])], ignore_index=True)
-            logger.info(f"Created BoxA - og_id: {box_data['og_id']} | id: {box_data['id']}")
-
-        box_flavor_data = {
-            'id': generate(size=7),
-            'box_id': self._get_box_id(pure_og_bid),
-            'flavor': box_data.get('flavor', ''),
-            'start_date': box_data.get('start_date', ''),
-            'finish_date': box_data.get('finish_date', '')
-        }
-        self.box_flavor_df = pd.concat([self.box_flavor_df, pd.DataFrame([box_flavor_data])], ignore_index=True)
-        logger.info(f"Created BoxF - box_id: {box_flavor_data['box_id']} | id: {box_flavor_data['id']}")
-
-        return
-
-    def _collect_can_data(self, can_data: pd.DataFrame, pure_og_bid: str) -> None:
-        """Adds can data to the can_data_df DataFrame."""
-        if can_data.empty:
-            logger.warning(f"No can data passed for {pure_og_bid}")
-            return
-
-        updated_can_data = self._update_box_id(can_data, pure_og_bid)
-        self.can_data_df = pd.concat([self.can_data_df, updated_can_data], ignore_index=True)
-        logger.debug(f"Created {len(updated_can_data)} CanData objects for box {pure_og_bid}")
-
-        return
-
-    def export_to_file(self) -> None:
-        """Exports the DataFrames to CSV files."""
-        self.box_all_df.to_csv(BOX_ALL_EXPORT, index=False)
-        self.box_flavor_df.to_csv(BOX_FLAVOR_EXPORT, index=False)
-        self.can_data_df.to_csv(CAN_EXPORT, index=False)
-        logger.info("Exported all data to CSV files.")
-
-
-
-
 
     @staticmethod
     def _read_markdown_data(file_path:str) -> tuple[dict[str,str], pd.DataFrame|None]:
@@ -375,31 +374,17 @@ class PreProcessor:
         
         return ep_formatted
 
-    def _can_format_converter(self, data:pd.DataFrame) -> list[dict,str,str] | None:
-        """ Converts from MD extracted can data to current format of can data """
-        if data is None:
-            return
-        
-        format_dict = data.transpose().to_dict()
-        format_dict.pop(0)
-        # list indices (rows) are dicts (len(dict) = # of columns) representing the can data
-        collected:list[dict[str,str]] = [format_dict[data] for data in format_dict]
 
-        adjusted_header: list[str] = self.source_data_attributes['can_data']['headers']
-        if 'box_id' in adjusted_header:
-            adjusted_header.remove('box_id')
+    # @@@@@@@@@@@@@@@@@@@ FILE EXPORTING @@@@@@@@@@@@@@@@@@@
 
-        # adjusts keys to match current header format
-        final = []
-        for can in collected:
-            header_values = [can[caninfo] if can[caninfo] != '' else 'NA' for caninfo in can] # list of row values with empty spaces converted to 'NA'
+    def export_to_file(self) -> None:
+        """Exports the DataFrames to CSV files."""
+        self.box_all_df.to_csv(BOX_ALL_EXPORT, index=False)
+        self.box_flavor_df.to_csv(BOX_FLAVOR_EXPORT, index=False)
+        self.can_data_df.to_csv(CAN_EXPORT, index=False)
+        logger.info("Exported all data to CSV files.")
 
-            if len(header_values) != len(adjusted_header):
-                raise ValueError(f'Amount of headers ({len(adjusted_header)}) does not match the amount of headers in the extracted data ({len(header_values)})\n{adjusted_header = }\n')
-            final.append(dict(zip(adjusted_header, header_values)))
 
-        return final
-    
 
 
     # @@@@@@@@@@@@@@@@@@@ EXTRACTION/FORMATTING VALIDATION TESTS @@@@@@@@@@@@@@@@@@@
