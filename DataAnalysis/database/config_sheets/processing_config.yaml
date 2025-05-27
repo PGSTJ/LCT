@@ -1,0 +1,29 @@
+---
+# Used as the key for retrieving the data collection and any associated information
+# MACRO ORDER IS IMPORTANT (purchase -> flavor -> can) to establish alias mapping
+# only the values should be changed -- keys must remain the same
+data_aliases:
+  purchase_data: purchases
+  flavor_data: flavors
+  can_data: cans
+
+# Default output directory names for each data collection. Their parent directory is specified in the DA module config
+# both keys and values can be changed, however the keys MUST match the values in data_aliases
+default_output_directory_names:
+  purchases: "box_purchases"
+  flavors: "box_flavors"
+  cans: "can_data"
+
+headers_to_extract: # order matters!
+  flavor: # used to extract flavor data columns from overall box df
+    - og_id
+    - base_og_id
+    - flavor
+    - start_date
+    - finish_date
+  can: # used to normalize can data df columns to extract
+    - initial_mass
+    - initial_volume
+    - final_mass
+    - final_volume
+    - finish_status

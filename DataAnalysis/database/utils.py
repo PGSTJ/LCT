@@ -1,5 +1,5 @@
-from .. import datetime, Literal, logging, csv, os, traceback, pd
-from ..config import SPREADSHEET_DIR, DATE_FORMAT, ALT_DATE_FORMAT, DB_CONFIG_DIR, DB_DIR
+from .. import datetime, Literal, logging, csv, os, traceback, pd, pathlib
+from ..config import ALT_DATE_FORMAT, DB_CONFIG_DIR, DB_DIR
 from ..utils import read_csv_data, read_json_data
 
 import sqlite3 as sl
@@ -8,11 +8,6 @@ logger = logging.getLogger('standard')
 
 
 
-
-
-
-
-DB_TABLE_CONFIG_DATA = {}
 
 
 class Database():
@@ -176,7 +171,7 @@ class Database():
     @staticmethod
     def standardize_date(date_input:str) -> datetime.datetime:
         if '/' in date_input:
-            return datetime.datetime.strptime(date_input, DATE_FORMAT)
+            return datetime.datetime.strptime(date_input, '') # NOTE broken after removing DATE_FORMAT
         return datetime.datetime.strptime(date_input, ALT_DATE_FORMAT)
 
     def _date_time_difference(self, final_date:str, initial_date:str) -> datetime.timedelta:
@@ -254,8 +249,7 @@ dbr = DatabaseRegistry()
 def process_db_config():
     """ Processes the database config data in the config_sheets directory """
     db_config_data_file = DB_CONFIG_DIR / 'db_data.csv'
-    db_config_data_df = pd.read_csv(db_config_data_file)
-    formatted_db_config = _format_db_config(db_config_data_df)
+    formatted_db_config = _extract_format_db_config(db_config_data_file)
 
     for database_name,table_data in formatted_db_config.items():
         db_table_data = _process_table_data(table_data)
@@ -283,7 +277,7 @@ def _process_table_data(table_data:dict[str, pd.DataFrame], print_formatted_conf
     
     return all_tables
 
-def _extract_foreign_key(config_data:list[dict[str,str]]):
+def _extract_foreign_key(config_data:list[dict[str,str]]) -> dict[str, dict[str,dict[str,pd.DataFrame]]]:
     for info in config_data:
         if ';' in info['foreign_key']:
             value = info['foreign_key'].split(';')
@@ -291,6 +285,30 @@ def _extract_foreign_key(config_data:list[dict[str,str]]):
             value = False
         config_data[config_data.index(info)]['foreign_key'] = value
     return config_data
+
+def _extract_format_db_config(path_to_config_file:str|pathlib.Path):
+    """ Extracts config parameters from a CSV file as a dataframe, then formats it into an ordered dictionary 
+    
+    Output dictionary hierarchy:
+    ```
+        {
+            <database name>: {
+                'table_order_map': {
+                    <table name>: <table dataframe>
+                }
+            }
+        }
+    ```
+
+    Call order: 
+        1. Database name
+        2. "table_order_map"
+        3. Table name
+    To return dataframe of config parameters for that table.
+    
+    """
+    data = pd.read_csv(path_to_config_file)
+    return _format_db_config(data)
 
 def _format_db_config(data:pd.DataFrame) -> dict[str, dict[str,dict[str,pd.DataFrame]]]:
     """ Restructures table config data preserving the original order of database name, table name, and header """
@@ -309,7 +327,6 @@ def _format_db_config(data:pd.DataFrame) -> dict[str, dict[str,dict[str,pd.DataF
         tables_dict.pop('tables_unordered')
     
     return db_order
-
 
 def _sort_grouping_per_csv(data:pd.Series) -> dict[str,None]:
     """ Extracts unique values from a pd.Series while retaining its original order as presented in the CSV """
@@ -491,17 +508,17 @@ def get_all_boxes() -> list[str]:
 
 
 
-def map_to_can(box_box_id:str) -> str | bool:
-    """Maps prior box box id to prior can box id"""
-    with open(os.path.join(SPREADSHEET_DIR, 'boxid_map.csv'), 'r') as fn:
-        hdr = fn.readline().strip().split(',')
-        BOX_ID_MAPPER:list[dict[Literal['box_box_id', 'can_box_id'],str]] = [info for info in csv.DictReader(fn, hdr)]
-        # print(f'BIMR hdr: {hdr}\n{BOX_ID_MAPPER = }')
+# def map_to_can(box_box_id:str) -> str | bool:
+#     """Maps prior box box id to prior can box id"""
+#     with open(os.path.join(SPREADSHEET_DIR, 'boxid_map.csv'), 'r') as fn:
+#         hdr = fn.readline().strip().split(',')
+#         BOX_ID_MAPPER:list[dict[Literal['box_box_id', 'can_box_id'],str]] = [info for info in csv.DictReader(fn, hdr)]
+#         # print(f'BIMR hdr: {hdr}\n{BOX_ID_MAPPER = }')
 
-    formatted_data = {dicts['can_box_bid']:dicts['box_box_id'] for dicts in BOX_ID_MAPPER}
-    logger.debug(f'{ formatted_data = }')
-    if box_box_id in formatted_data:
-        return formatted_data[box_box_id]
-    logger.warning(f'{box_box_id} does not exist in map.') 
-    return False
+#     formatted_data = {dicts['can_box_bid']:dicts['box_box_id'] for dicts in BOX_ID_MAPPER}
+#     logger.debug(f'{ formatted_data = }')
+#     if box_box_id in formatted_data:
+#         return formatted_data[box_box_id]
+#     logger.warning(f'{box_box_id} does not exist in map.') 
+#     return False
 
