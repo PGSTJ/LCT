@@ -1,20 +1,16 @@
 from . import logging, pathlib
 
 # Date Time formats
-PRIM_DATE_FORMAT = '%m/%d/%Y' # default date format
-ALT_DATE_FORMAT = '%B %d, %Y'
-FILE_DATE_FORMAT = '%m%d%Y'
-PRIM_DATETIME_FORMAT = '%m/%d/%Y %H:%M:%S' # default datetime format
-
 ALL_DATETIME_FORMATS = {
-    'PRIM_DATE': PRIM_DATE_FORMAT,
-    'ALT_DATE': ALT_DATE_FORMAT,
-    'FILE_DATE': FILE_DATE_FORMAT,
-    'PRIM_DATETIME': PRIM_DATETIME_FORMAT
+    'PRIM_DATE': '%m/%d/%Y', # default date format
+    'ALT_DATE': '%B %d, %Y',
+    'FILE_DATE': '%m%d%Y',
+    'PRIM_DATETIME': '%m/%d/%Y %H:%M:%S' # default datetime format
 }
 
 DA_DIR = pathlib.Path(__file__).parent
 
+# modules
 DATABASE_UTIL_DIR = DA_DIR / 'database'
 DB_DIR = DA_DIR / 'databases'
 
@@ -28,6 +24,7 @@ EXTERNAL_DATA_DIR = pathlib.Path(r'C:\Users\tmalo\Desktop\La Croix Data')
 DB_CONFIG_DIR = DATABASE_UTIL_DIR / 'config_sheets'
 DEFAULT_PROCESSING_OUTPUT_DIR = EXTERNAL_DATA_DIR / 'processed_data'
 
+# DB_DIR = EXTERNAL_DATA_DIR / 'databases'
 
 
 

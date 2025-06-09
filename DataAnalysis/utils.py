@@ -26,7 +26,7 @@ def get_current_time(format:Literal['PRIM_DATE', 'FILE_DATE', 'PRIM_DATETIME']):
     return datetime.datetime.now().strftime(ALL_DATETIME_FORMATS[format])
 
 
-def read_yaml_data(config_file_path:str) -> dict|list[dict]:
+def read_yaml_data(config_file_path:str) -> list[dict]:
     """ Reads contents of all documents in a .yaml config file and returns as a dict"""
 
     with open(config_file_path, 'r') as fn:
@@ -34,10 +34,10 @@ def read_yaml_data(config_file_path:str) -> dict|list[dict]:
 
     if len(data) == 1:
         logger.info(f'Only one YAML document found in {config_file_path}')
-        return data[0]
     else:
         logger.info(f'{len(data)} YAML documents found in {config_file_path}')
-        return data
+
+    return data
     
 
 class PickleHandler:

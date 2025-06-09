@@ -13,6 +13,9 @@ PQ,Pasteque,flavor
 MJ,Mojito,flavor
 MG,Mango,flavor
 SP,Strawberry Peach,flavor
+SS,Sunshine,flavor
+CLM,Cherry Lime,flavor
+BC,Blackberry Cucumber,flavor
 SMP,Summer Pack,costco_pack
 CMC,Commencement Pack,costco_pack
 TGT,Target,location
@@ -23,6 +26,4 @@ SUP,Superior,location
 VON,Vons,location
 WLG,Walgreens,location
 JON,Jons,location
-Y,Yes,admin_can_status
-N,No,admin_can_status
-S,Sliver,admin_can_status
+ALD,Aldi,location

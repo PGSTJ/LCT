@@ -8,7 +8,7 @@ import io
 import re
 import traceback
 import json
-from typing import Literal
+from typing import Literal, TypeAlias
 from nanoid import generate
 import yaml
 import pickle

@@ -1,38 +1,43 @@
 
-from typing import Literal, TypeAlias
-
-from .. import (logging, os, pd, re, io, datetime, np, generate)
+from .. import (logging, os, pd, re, io, datetime, np, generate, Literal, TypeAlias)
 from ..utils import read_yaml_data, get_current_time
 from ..config import (
-    PRIM_DATETIME_FORMAT, DB_CONFIG_DIR, DEFAULT_PROCESSING_OUTPUT_DIR
+    DB_CONFIG_DIR, DEFAULT_PROCESSING_OUTPUT_DIR, ALL_DATETIME_FORMATS
 )
+
+from .base import Database
 
 logger = logging.getLogger('standard')
 
 
-CONFIG_DATA = read_yaml_data(DB_CONFIG_DIR / 'processing_config.yaml')
+PC_DataCollectionAlias:TypeAlias = dict[Literal['purchase_data', 'flavor_data', 'can_data'], str]
+PC_DefOpDirNames:TypeAlias = dict[str, str]
+PC_HtE:TypeAlias = dict[Literal['flavor', 'can'], list[str]]
+ProccessingConfig:TypeAlias = dict[Literal['data_aliases', 'default_output_directory_names', 'headers_to_extract'], PC_DataCollectionAlias|PC_DefOpDirNames|PC_HtE]
+
+CONFIG_DATA:ProccessingConfig = read_yaml_data(DB_CONFIG_DIR / 'processing_config.yaml')[0]
 
 
 class DataProcessor:
     """ Utility class for extracting and processing la croix data into databases 
     
-    Attributes
-    ----------
+        Attributes
+        ----------
 
-        Helper Attrs:
-            id_map (dict[str, dict[str,str]]) : Maps the original box id to the generated box ids (for purchase and flavors).
-                                                            Used for post-processing relation linking, validation, and 
-                                                            verification purposes.
+            Helper Attrs:
+                id_map (dict[str, dict[str,str]]) : Maps the original box id to the generated box ids (for purchase and flavors).
+                                                    Used for post-processing relation linking, validation, and 
+                                                    verification purposes.
 
-        Output Attrs:
-            box_purchases (pd.Dataframe) : Dataframe containing extracted and formatted box purchase data
-            box_flavors (pd.Dataframe) : Dataframe containing extracted and formatted box flavor data
-            can_data (pd.Dataframe) : Dataframe containing extracted and formatted can data
+            Output Attrs:
+                box_purchases (pd.Dataframe) : Dataframe containing extracted and formatted box purchase data
+                box_flavors (pd.Dataframe) : Dataframe containing extracted and formatted box flavor data
+                can_data (pd.Dataframe) : Dataframe containing extracted and formatted can data
 
 
-    Methods
-    -------
-        run_pre_processing(csv_data_dir:str, md_data_dir:str)
+        Methods
+        -------
+            run_pre_processing(csv_data_dir:str, md_data_dir:str)
     
     """
     def __init__(self):
@@ -50,53 +55,12 @@ class DataProcessor:
         self.alias_map:dict[str,str] = self._create_data_alias_map() # keys are collection aliases specified in processing_config.yaml
 
         self.metadata = {
-            'Process Execution Time': datetime.datetime.now().strftime(PRIM_DATETIME_FORMAT),
+            'Process Execution Time': datetime.datetime.now().strftime(ALL_DATETIME_FORMATS['PRIM_DATETIME']),
             'Export': {}
         }
         
         
     # @@@@@@@@@@@@@@@@@@@ METHODS @@@@@@@@@@@@@@@@@@@
-
-    # NOTE probably more gen background util than true method purposes
-    def get_data_collections(self, all_data:bool=True, data_collection:tuple[str]=None) -> dict[str, pd.DataFrame]:
-        """ Get dataframe of processed data
-
-        Args
-        ----
-            all_data (bool) : If True, will return all data collections, mapped from their database table name. Default
-                              is True. Must specify at least one collection if False.
-            data_collection (tuple[str]) : Sequence containing valid aliases of specific dataframes to pull. Default 
-                                           is None. Valid aliases are specified in processing_config.yaml under 'data_aliases'.
-
-        Returns
-        -------
-            A dictionary mapping the collection alias to the dataframe
-        
-        """
-        
-
-        if all_data:
-            return {collection_alias: self.__dict__[df_key] for collection_alias, df_key in self.alias_map.items()}
-
-        assert data_collection, f'Must specify at least one collection to return if all_data=False'
-        assert all(collection_alias in self.alias_map for collection_alias in data_collection), f'Invalid collection alias specified. Must be one of {list[self.alias_map.keys()]}'
-
-        return {collection_alias:self.__dict__[self.alias_map[collection_alias]] for collection_alias in data_collection}
-        
-        
-
-    
-
-    def _create_data_alias_map(self) -> dict[str,str]:
-        """ Maps the collection aliases specified in the config YAML to the corresponding dataframe data collection """
-        
-        aliases:list[str] = [aliases for _, aliases in CONFIG_DATA['data_aliases'].items()]        
-        all_collections:list[pd.DataFrame] = [k for k in self.__dict__ if k.endswith('_df')]
-        alias_map = dict(zip(aliases, all_collections))
-
-        logger.info(f'Created alias map for data collections from aliases in config file') # TODO add some kind of sanity check to ensure aliases map to the correct dataframe
-
-        return alias_map
 
     def run_pre_processing(
             self,
@@ -104,6 +68,10 @@ class DataProcessor:
             md_data_dir:str=None
         ):
         """ Extracts Box and Can data from CSV or (notion export) MD files and formats for DB insertion
+
+            Args:
+                csv_data_dir (str) : path to directory containing box/can data as CSVs
+                md_data_dir (str) : path to directory containing Notion exports with MD files
         
         """
         assert csv_data_dir or md_data_dir, f'Must supply at least one directory to process'
@@ -206,8 +174,7 @@ class DataProcessor:
         # get box id from ba df based on poi, inserted at beginning
         bf_df.insert(0, 'box_id', bf_df['base_og_id'].apply(lambda x:self._get_box_id(df= box_all_df, base_original_box_id=x)))
         bf_df.insert(0, 'id', [generate(size=7) for _ in range(len(bf_df))])
-        # bf_df['has_cans'] = False # TODO add column to headers for DB insertion
-        bf_df.insert(len(bf_df.columns), 'has_cans', False) # TODO add column to headers for DB insertion
+        bf_df.insert(len(bf_df.columns), 'has_cans', False)
 
         # create id map before dropping unnecessary cols for box flavor DF
         ids_to_delete = ['og_id', 'base_og_id']
@@ -240,7 +207,7 @@ class DataProcessor:
 
             # values for two missing can data df columns
             all_ids = self.id_map[og_id] # TODO REALLY IMPORTANT !!!! CHANGE "ALL" NOMENCLATURE TO "PURCHASE" FOR CLARITY
-            id_col = df['Can'].apply(lambda x:f'{all_ids["purchase id"]}.{x}')
+            id_col = df['Can'].apply(lambda x:f'{all_ids["purchase id"]}.{flavor_id}.{x}') 
             
             df.insert(0, 'box_id', flavor_id)
             df.insert(0, 'id', id_col)
@@ -342,13 +309,13 @@ class DataProcessor:
     @staticmethod
     def _read_markdown_data(file_path:str) -> tuple[dict[str,str], pd.DataFrame|None]:
         """Parses exported Notion Page markdown files into properties and description data; the latter of
-        which is essentially table data given how LCT Notion Pages are designed.
+            which is essentially table data given how LCT Notion Pages are designed.
         
         
         
-        Returns
-        -------
-            A tuple containing box data as a dict and can data as a Dataframe, in that order
+            Returns
+            -------
+                A tuple containing box data as a dict and can data as a Dataframe, in that order
         
         """
         with open(file_path, 'r') as file:
@@ -382,9 +349,9 @@ class DataProcessor:
     def _box_header_format_converter(self, extracted_properties:dict[str,str]) -> dict[str,str]:
         """ Converts from MD header format to DB header format
 
-        Only for extracting box data (properties) from Notion export 
-        MD files. Property keys need to match current headers for 
-        extracting data from CSVs.
+            Only for extracting box data (properties) from Notion export 
+            MD files. Property keys need to match current headers for 
+            extracting data from CSVs.
         
         """
         manual:dict[str,str] = {  # keys should match key in extracted_properties
@@ -407,40 +374,46 @@ class DataProcessor:
         
         return ep_formatted
 
+    #                                   @@@@@@@@@@@@@@@@@@@ GENERAL UTILS @@@@@@@@@@@@@@@@@@@
+    def _create_data_alias_map(self) -> dict[str,str]:
+        """ Maps the collection aliases specified in the config YAML to the corresponding dataframe data collection """
+        
+        aliases:list[str] = [aliases for _, aliases in CONFIG_DATA['data_aliases'].items()]        
+        all_collections:list[str] = [k for k in self.__dict__ if k.endswith('_df')]
+        alias_map = dict(zip(aliases, all_collections))
 
+        logger.info(f'Created alias map for data collections from aliases in config file') # TODO add some kind of sanity check to ensure aliases map to the correct dataframe
+
+        return alias_map
 
     # @@@@@@@@@@@@@@@@@@@ FILE EXPORTING @@@@@@@@@@@@@@@@@@@
 
-    def export_to(
+    def file_export(
             self,
-            type:Literal['csv', 'pickle', 'db'],
-            all_data:bool=True,
-            collections:tuple[Literal['purchases', 'flavors', 'cans']]=None,
-            output_dir_map:dict[Literal['purchases', 'flavors', 'cans'], str]=None,
-            output_file_map:dict[Literal['purchases', 'flavors', 'cans'], str]=None
+            type:Literal['csv', 'pickle'],
+            all_data:bool,
+            collections:tuple[str],
+            *,
+            output_dir_map:dict[str, str]|None=None,
+            output_file_map:dict[str, str]|None=None,
 
     ) -> None:
-        """ Exports the DataFrames to CSV files.
+        """ Exports data to a file (csv or pkl)
         
-        Args
-        ----
-            type (Literal['csv', 'pickle', 'db']) : Type of file to export to.
-            all (bool) : If True, exports all collections. Must specify at least one 
-                         collection OR output_dir_map if False. Default is True.
-            collections (tuple[Literal['purchases', 'flavors', 'cans']]) : Sequence of specific collections
-                                                                           to export. Only required if 
-                                                                           all=False AND output_dir_map 
-                                                                           is None.
-            output_dir_map (dict[Literal['purchases', 'flavors', 'cans'], str]) : Override default output 
-                                                                                  directory locations. Only 
-                                                                                  required if all=False AND 
-                                                                                  output_dir_map is None.
-            output_file_map (dict[Literal['purchases', 'flavors', 'cans'], str]) : Override default output 
-                                                                                   file names. 
+            Args
+            ----
+                type (Literal['csv', 'pickle']) : Type of file to export to.
+                all (bool) : If True, exports all collections. Must specify at least one 
+                            collection OR output_dir_map if False. 
+                collections (tuple[str]) : Sequence of specific collections to export. Only required if 
+                                           all=False AND output_dir_map is None.
+                output_dir_map (dict[str, str]) : Override default output directory locations. Only required if
+                                                  all=False AND output_dir_map is None.                            
+                output_file_map (dict[str, str]) : Override default output file names.
 
-        Returns
-        -------
-            Nothing.
+            Returns
+            -------
+                Nothing.
         
         """
         
@@ -462,7 +435,7 @@ class DataProcessor:
             fdp = DEFAULT_PROCESSING_OUTPUT_DIR / package['dirname']
             os.makedirs(fdp, exist_ok=True)
 
-            fp = os.path.join(fdp, package['filename'])
+            fp = os.path.join(fdp, package['filename']) # no file extension yet
 
             self._export(type=type, path=fp, final_df=self.__dict__[self.alias_map[collection]])
             self.metadata['Export']['Successful Exports'] += 1
@@ -471,11 +444,33 @@ class DataProcessor:
 
         return
     
+    def get_filtered_collections(self, aliases:tuple[str]) -> list[tuple[str, pd.DataFrame]]:
+        """ Returns all collections at valid alias(es) """
+        if '*' in aliases:
+            return [(alias, self.__dict__[param]) for alias, param in self.alias_map.items()]
+        
+
+        
+        # checking each alias individually to also check for valid dataframe in case its None
+        valid_collections = []
+        for alias in aliases:
+            if alias in self.alias_map: 
+                data:pd.DataFrame|None = self.__dict__[self.alias_map[alias]]
+                if data:
+                    valid_collections.append((alias, data))
+                else:
+                    logger.warning(f'Valid alias ({alias}) does not contain data')
+            else:
+                logger.warning(f'Invalid alias: {alias}')
+        return valid_collections
+            
+
+    
     def _get_generic_export_queue(self) -> dict[str, str|pd.DataFrame|bool]:
         """ Formats a generic package containing default export data """
 
         default_output_dirs = CONFIG_DATA['default_output_directory_names']
-        assert all(collection_alias in default_output_dirs for collection_alias in self.alias_map.keys()), f'Invalid config setup -> collection aliase values specified in data_aliases does not match the keys in default_output_directory_names. Collection aliases: {self.alias_map.keys()} | default output dirname keys: {default_output_dirs.keys()}'
+        assert all(collection_alias in default_output_dirs for collection_alias in self.alias_map.keys()), f'Invalid config setup -> collection alias values specified in data_aliases does not match the keys in default_output_directory_names. Collection aliases: {self.alias_map.keys()} | default output dirname keys: {default_output_dirs.keys()}'
 
         def_filename = get_current_time('FILE_DATE')
 
@@ -533,7 +528,11 @@ class DataProcessor:
 
         
     @staticmethod
-    def _export(type:str, path:str, final_df:pd.DataFrame):
+    def _export(
+        type:str, 
+        path:str, 
+        final_df:pd.DataFrame,
+    ):
         if type == 'csv':
             final_df.to_csv(f'{path}.csv', index=False)
         elif type == 'pickle':
@@ -544,8 +543,39 @@ class DataProcessor:
         return
         
 
+    def db_export(self, database_object:Database, collection_aliases:tuple[str]=('*',), override:bool='False'):
+        """ Exports data collections to databases, unless specific collections are specified
+
+            Args:
+                database_object (Database) : Object representing the "raw_data.db" database
+                collections (tuple[str]) : Specifies the collections to export, according to 
+                                           the alias map. If none is provided, will export 
+                                           all collections
+        
+        """
+        queue = self.get_filtered_collections(collection_aliases)
+
+        db_table_alias_map:PC_DefOpDirNames = CONFIG_DATA['default_output_directory_names']
+
+
+        if_exists = 'replace' if override else 'append'
+
+        conn, _ = database_object.create_connection()
+
+        for alias, df in queue:
+            table_name = db_table_alias_map[alias]
+            table_headers = database_object.tables[table_name]['header']
+            # drop columns that aren't in the database table 
+            df = df.drop(columns=[col for col in df.columns if col not in table_headers])
             
-            
+            df.to_sql(name=table_name, con=conn, if_exists=if_exists, index=False)
+
+            logger.info(f'Added {alias} data to database')
+        
+        database_object.close_commit(conn)
+        return
+
+
 
 
     # @@@@@@@@@@@@@@@@@@@ EXTRACTION/FORMATTING VALIDATION TESTS @@@@@@@@@@@@@@@@@@@

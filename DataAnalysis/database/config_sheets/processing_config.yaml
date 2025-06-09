@@ -9,6 +9,7 @@ data_aliases:
 
 # Default output directory names for each data collection. Their parent directory is specified in the DA module config
 # both keys and values can be changed, however the keys MUST match the values in data_aliases
+# NOTE THE VALUES ARE ALSO THE RESPECTIVE DATABASE TABLE NAMES
 default_output_directory_names:
   purchases: "box_purchases"
   flavors: "box_flavors"
