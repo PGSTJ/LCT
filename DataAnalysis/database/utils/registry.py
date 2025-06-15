@@ -1,15 +1,58 @@
 
-from ..utils import PickleHandler
-from ..config import SAVED_TABLE_DATA_DIR
+from ...utils import PickleHandler
+from ...config import SAVED_TABLE_DATA_DIR
 
 from .base import Database, logging, os
-from .utils import format_db_config, process_table_data, check_for_saved_table_data
 from .custom_types import TableData
 
 
 logger = logging.getLogger('standard')
 pickler = PickleHandler()
 
+
+def _check_for_saved_table_data(output_dir_path:str) -> None|str:
+    """ Checks for any pickled table data from previous extractions in the provided directory.
+    
+        Args:
+            output_dir_path (str) : Path to the directory being search for saved table data
+
+        Returns:
+            A path to the saved data, if found
+    
+    """
+
+    assert os.path.isdir(output_dir_path), f'Must supply a path to a directory, not: {output_dir_path}'
+
+    found_saves = [fn for fn in os.listdir(output_dir_path) if fn.endswith('_table_data.pkl')]
+    total_saves = len(found_saves)
+
+    if total_saves == 0:
+        logger.warning(f'No pickle saves identified in the provided directory: {output_dir_path}')
+        return None
+
+    elif total_saves == 1:
+        logger.info(f'Loading save from {found_saves[0]}')
+        fp = os.path.join(output_dir_path, found_saves[0])
+        return fp
+    
+    logger.info(f'Multiple saves detected: {found_saves}')
+    print(f'Multiple saves detected ({total_saves}). Choose from one below:')
+
+    assertion = False
+    while not assertion: 
+
+        for save in found_saves:
+            print(f'- {save}')
+        
+        option = input('> ')
+
+        assert option in found_saves, f'Invalid option: {option}. Must choose from below:'
+
+        option_idx = found_saves.index(option)
+        assertion = True
+
+    fp = os.path.join(output_dir_path, found_saves[option_idx])
+    return fp
 
 
 
@@ -54,7 +97,7 @@ class DatabaseRegistry:
         logger.info(f'Identified {len(valid_files)} databases to register in {db_dir}')
 
         # check for previous saves to apply semi automatically
-        save_path = check_for_saved_table_data(saved_table_data_dir)
+        save_path = _check_for_saved_table_data(saved_table_data_dir)
 
         # iterate through valid database files and create a new object
         # automatically unpacks and assigns table data from a previous save if available

@@ -1,6 +1,6 @@
 
-from .. import datetime, Literal, logging, os, traceback, pd, TypeAlias
-from ..config import ALL_DATETIME_FORMATS, DB_DIR
+from ... import datetime, Literal, logging, os, traceback, pd
+from ...config import ALL_DATETIME_FORMATS, DB_DIR
 
 from .custom_types import TablesMacroInfo, TableData
 

@@ -15,7 +15,8 @@ DATABASE_UTIL_DIR = DA_DIR / 'database'
 DB_DIR = DA_DIR / 'databases'
 
 LOGS_DIR = DA_DIR / 'logs'
-LOGGING_FILE = LOGS_DIR / 'generic.log'
+ALL_LOGS = LOGS_DIR / 'all.log'
+GENERAL_LOG_FILE = LOGS_DIR / 'generic.log'
 ERROR_LOGGING_FILE = LOGS_DIR / 'errors.log'
 
 
@@ -38,14 +39,21 @@ LOGGING_CONFIG = {
             'format': '%(asctime)s|%(levelname)-8s(%(filename)s)| %(message)s'
         },
         'error': {
-            'format': '\n%(asctime)s|%(levelname)-8s| %(message)s\n%(pathname)s'
+            'format': '%(asctime)s|%(levelname)-8s|%(funcName)-8s| %(message)s\n%(pathname)s'
         }
     },
     'handlers': {
-        'file': {
+        'all_logs': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': LOGGING_FILE,
+            'filename': ALL_LOGS,
+            'mode': 'w',
+            'formatter': 'generic'
+        },
+        'maintenance': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': GENERAL_LOG_FILE,
             'mode': 'w',
             'formatter': 'generic'
         },
@@ -55,7 +63,6 @@ LOGGING_CONFIG = {
             'filename': ERROR_LOGGING_FILE,
             'mode': 'w',
             'formatter': 'error'
-
         },
         'console': {
             'level': 'WARNING',
@@ -65,7 +72,7 @@ LOGGING_CONFIG = {
     },
     'loggers': {
         'standard': {
-            'handlers': ['file', 'console', 'error_file'],
+            'handlers': ['all_logs', 'maintenance', 'console', 'error_file'],
             'level': 'DEBUG',
             'propagate': False
         }

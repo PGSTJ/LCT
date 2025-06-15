@@ -1,12 +1,73 @@
-from .. import Literal, logging, pd, os
 
+from ... import logging, os, pd
+from ...utils import get_current_time, PickleHandler
+from ...config import DB_CONFIG_DIR
+
+from utils.registry import Database, DatabaseRegistry
 from .custom_types import DatabaseConfigMap, TableData, TableMap
 
 
+
+
+
+
 logger = logging.getLogger('standard')
+db_reg = DatabaseRegistry()
+pickler = PickleHandler()
 
 
+db_cdf = DB_CONFIG_DIR / 'db_table_data.csv'
 
+
+def create_reset_databases(
+        db_config_file_path:str=str(db_cdf), 
+        reset:bool=False, 
+        save_table_data:bool=False,
+        output_dir_path:str|None=None
+    ):
+    """ Creates or resets database(s) based on config file then registers them to the global registry
+    
+        Args:
+            database_registry (DatabaseRegistry) : Master collection of created and registered databases
+            db_config_file_path (str) : Path to the database config CSV file
+            reset (bool) : If true, will delete and recreate all registered databases. Default is False.
+            save_table_date (bool) : If true, will pickle save extracted table data to the specified output_path.
+                                     Default is False.
+            output_path (str) : Path to the directory containing saved table data
+    
+    
+    """
+    if reset:
+        db_reg.reset_databases()
+
+    # recreate tables per current DB TABLE CONFIG file TODO check whether  
+    formatted_db_config = format_db_config(db_config_file_path)
+
+    all_table_data = {}
+
+    for database_name,table_data in formatted_db_config.items():
+        if db_reg.validate_registration(database_name):
+            continue
+
+        db_table_data = process_table_data(table_data)
+        all_table_data[database_name] = db_table_data
+
+        dbo = Database(database_name=database_name, table_data=db_table_data) 
+        dbo.create_tables()
+
+        db_reg.add_instance(dbo)
+
+    if save_table_data:
+        assert output_dir_path, f'Must supply output destination to save table data'
+        assert os.path.isdir(output_dir_path), f'Must supply path to a directory, not: {output_dir_path}'
+
+        ct = get_current_time(format='FILE_DATE')
+        fp = os.path.join(output_dir_path, f'{ct}_table_data.pkl')
+
+        pickler.save_pickle(all_table_data, fp)
+        print(f'Pickled table data to {fp}')
+
+    return
 
 def format_db_config(path_to_config_file:str) -> DatabaseConfigMap:
     """ Extracts config parameters from a CSV file as a dataframe, then Restructures table config data 
@@ -91,108 +152,4 @@ def process_table_data(table_data_map:TableMap) -> TableData:
     return all_tables
 
 
-def check_for_saved_table_data(output_dir_path:str) -> None|str:
-    """ Checks for any pickled table data from previous extractions in the provided directory.
     
-        Args:
-            output_dir_path (str) : Path to the directory being search for saved table data
-
-        Returns:
-            A path to the saved data, if found
-    
-    """
-
-    assert os.path.isdir(output_dir_path), f'Must supply a path to a directory, not: {output_dir_path}'
-
-    found_saves = [fn for fn in os.listdir(output_dir_path) if fn.endswith('_table_data.pkl')]
-    total_saves = len(found_saves)
-
-    if total_saves == 0:
-        logger.warning(f'No pickle saves identified in the provided directory: {output_dir_path}')
-        return None
-
-    elif total_saves == 1:
-        logger.info(f'Loading save from {found_saves[0]}')
-        fp = os.path.join(output_dir_path, found_saves[0])
-        return fp
-    
-    logger.info(f'Multiple saves detected: {found_saves}')
-    print(f'Multiple saves detected ({total_saves}). Choose from one below:')
-
-    assertion = False
-    while not assertion: 
-
-        for save in found_saves:
-            print(f'- {save}')
-        
-        option = input('> ')
-
-        assert option in found_saves, f'Invalid option: {option}. Must choose from below:'
-
-        option_idx = found_saves.index(option)
-        assertion = True
-
-    fp = os.path.join(output_dir_path, found_saves[option_idx])
-    return fp
-
-    
-
-
-
-def _calculate_box_analyses():
-    """
-    
-    """
-
-
-
-
-
-
-
-database = None
-
-def get_table_property(table: Literal['<database table>'], property:Literal['<database column>'], where_row:Literal['<database column>']=None, where_value:str|bool|int=None, count:bool=False):
-    """Search for property from all specimens or specify a specific row"""
-    conn, curs = database.create_connection()
-
-    if where_row:
-        data = [info[0] for info in curs.execute(f'SELECT {property} FROM {table} WHERE {where_row}=?', (where_value,))]
-    else:
-        data = [info[0] for info in curs.execute(f'SELECT {property} FROM {table}')]
-    
-    database.close_commit(conn)
-    
-    if count:
-        return len(data)
-    return data
-
-def get_multiple_table_properties(table: Literal['<database table>'], count:bool=False, *properties:list[str], **where_specifiers) -> list[tuple] | int:
-    conn, curs = database.create_connection()
-
-    data = [info for info in curs.execute(f'SELECT {','.join(properties)} FROM {table}')]
-    if where_specifiers:
-        where_data = database._generate_where_stmt(where_specifiers)
-
-        data = [info for info in curs.execute(f'SELECT {','.join(properties)} FROM {table} WHERE {where_data['stmt']}', tuple(where_data['values']))]
-
-    database.close_commit(conn)
-
-    if count:
-        return len(data)
-    return data
-
-
-def check_abbreviation_existence(abbreviation:str) -> bool:
-    """Validates whether specified abbreviation exists in reference database"""
-    if abbreviation in get_table_property('reference_data', 'abbreviation'):
-        return True
-    return False
-
-
-
-
-# Quick Views 
-def get_all_boxes() -> list[str]:
-    """Returns list of box IDs"""
-

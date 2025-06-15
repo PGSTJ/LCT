@@ -1,4 +1,4 @@
-from .. import Literal, pd, TypeAlias, TypedDict
+from ... import Literal, pd, TypeAlias, TypedDict
 
 
 
