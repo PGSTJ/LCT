@@ -2,8 +2,7 @@
 from ... import Literal, logging, pd, generate, os
 from ...config import DB_DIR
 
-from utils.registry import Database, DatabaseRegistry
-
+from ..utils.registry import DatabaseRegistry
 
 logger = logging.getLogger('standard')
 db_reg = DatabaseRegistry(base_database_dir=DB_DIR)

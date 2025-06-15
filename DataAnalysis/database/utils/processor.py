@@ -196,6 +196,12 @@ class DataProcessor:
             if df is None:
                 continue
 
+            # NOTE TEMPORARY REQUIREMENT UNTIL OLD FORMAT DOESN'T REQUIRE PROCESSING ANYMORE
+            # Manually add 'true_empty_mass' column for new structure
+            if 'true_empty_mass' not in df.columns:
+                df.insert(loc=len(df.columns) - 1, column='true_empty_mass', value=np.nan)
+
+
             # mark box as having cans
             flavor_id = self.id_map[og_id]['flavor id']
             row = all_flavors[all_flavors['id']==flavor_id].index[0]

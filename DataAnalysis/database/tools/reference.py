@@ -1,7 +1,7 @@
 from ... import logging, pd, generate
 from ...config import DB_DIR, DB_CONFIG_DIR
 
-from utils.registry import DatabaseRegistry
+from ..utils.registry import DatabaseRegistry
 
 
 logger = logging.getLogger('standard')

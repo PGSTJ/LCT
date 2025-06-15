@@ -1,7 +1,7 @@
 from ... import Literal, logging, os
-from utils.registry import DatabaseRegistry
 
-from utils.processor import DataProcessor
+from ..utils.registry import DatabaseRegistry
+from ..utils.processor import DataProcessor
 
 
 

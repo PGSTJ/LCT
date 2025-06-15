@@ -2,7 +2,7 @@
 from ...utils import PickleHandler
 from ...config import SAVED_TABLE_DATA_DIR
 
-from .base import Database, logging, os
+from .base import Database, logging, os, Literal
 from .custom_types import TableData
 
 
@@ -10,11 +10,14 @@ logger = logging.getLogger('standard')
 pickler = PickleHandler()
 
 
-def _check_for_saved_table_data(output_dir_path:str) -> None|str:
+def _check_for_saved_table_data(output_dir_path:str, decision_behavior:Literal['recent', 'choose']='recent') -> None|str:
     """ Checks for any pickled table data from previous extractions in the provided directory.
     
         Args:
             output_dir_path (str) : Path to the directory being search for saved table data
+            decision_behavior (str) : Determines handling of multiple detected saves. Default is most recent.
+                - *recent*: Choose the most recently created save
+                - *choose*: Allows the user to manually choose the save to use
 
         Returns:
             A path to the saved data, if found
@@ -36,22 +39,23 @@ def _check_for_saved_table_data(output_dir_path:str) -> None|str:
         return fp
     
     logger.info(f'Multiple saves detected: {found_saves}')
-    print(f'Multiple saves detected ({total_saves}). Choose from one below:')
+    
+    if decision_behavior == 'recent':
+        fps = [os.path.join(output_dir_path, fn) for fn in found_saves]
+        mrf = max(fps, key=os.path.getctime)
+        logger.info(f'Loading most recent save from {mrf}')
+        return mrf 
 
-    assertion = False
-    while not assertion: 
+    # assumes behavior to be manual user decision 
+    print(f'Multiple saves detected. Choose from one below:')
+    
+    for idx, save in enumerate(found_saves, start=1):
+        print(f'- ({idx}) {save}')
+    
+    option = input('Option: > ')
+    assert option in found_saves, f'Invalid option: {option}. Must choose from below:'
 
-        for save in found_saves:
-            print(f'- {save}')
-        
-        option = input('> ')
-
-        assert option in found_saves, f'Invalid option: {option}. Must choose from below:'
-
-        option_idx = found_saves.index(option)
-        assertion = True
-
-    fp = os.path.join(output_dir_path, found_saves[option_idx])
+    fp = os.path.join(output_dir_path, found_saves[found_saves.index(option)])
     return fp
 
 

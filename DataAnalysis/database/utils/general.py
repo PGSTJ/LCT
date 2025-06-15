@@ -3,7 +3,8 @@ from ... import logging, os, pd
 from ...utils import get_current_time, PickleHandler
 from ...config import DB_CONFIG_DIR
 
-from utils.registry import Database, DatabaseRegistry
+from ..utils.registry import Database, DatabaseRegistry
+
 from .custom_types import DatabaseConfigMap, TableData, TableMap
 
 

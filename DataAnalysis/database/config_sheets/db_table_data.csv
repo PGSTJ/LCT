@@ -31,6 +31,7 @@ raw_data,can_data,initial_mass,INT,FALSE
 raw_data,can_data,initial_volume,FLOAT,FALSE
 raw_data,can_data,final_mass,INT,FALSE
 raw_data,can_data,final_volume,FLOAT,FALSE
+raw_data,can_data,true_empty_mass,FLOAT,FALSE
 raw_data,can_data,finish_status,VARCHAR(3),FALSE
 static_analyses,box_analysis,box_id,VARCHAR(7),FALSE
 static_analyses,box_analysis,time_to_start,INT,FALSE
@@ -40,6 +41,9 @@ static_analyses,box_analysis,average_pmr,FLOAT,FALSE
 static_analyses,box_analysis,average_pvr,FLOAT,FALSE
 static_analyses,can_analysis,can_id,VARCHAR(7),FALSE
 static_analyses,can_analysis,objective_finish_status,VARCHAR(3),FALSE
+static_analyses,can_analysis,mass_difference,FLOAT,FALSE
+static_analyses,can_analysis,true_mass_difference,FLOAT,FALSE
+static_analyses,can_analysis,volume_difference,FLOAT,FALSE
 static_analyses,can_analysis,percentage_mass_remaining,FLOAT,FALSE
 static_analyses,can_analysis,percentage_volume_remaining,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,flavor,VARCHAR(5),FALSE
