@@ -22,6 +22,7 @@ ERROR_LOGGING_FILE = LOGS_DIR / 'errors.log'
 # (Default) Config and output directories 
 EXTERNAL_DATA_DIR = pathlib.Path(r'C:\Users\tmalo\Desktop\La Croix Data')
 DB_CONFIG_DIR = DATABASE_UTIL_DIR / 'config_sheets'
+SAVED_TABLE_DATA_DIR = DATABASE_UTIL_DIR / 'saved_table_data'
 DEFAULT_PROCESSING_OUTPUT_DIR = EXTERNAL_DATA_DIR / 'processed_data'
 
 # DB_DIR = EXTERNAL_DATA_DIR / 'databases'

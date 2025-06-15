@@ -9,11 +9,7 @@ from .base import Database
 
 logger = logging.getLogger('standard')
 
-
-PC_DataCollectionAlias:TypeAlias = dict[Literal['purchase_data', 'flavor_data', 'can_data'], str]
-PC_DefOpDirNames:TypeAlias = dict[str, str]
-PC_HtE:TypeAlias = dict[Literal['flavor', 'can'], list[str]]
-ProccessingConfig:TypeAlias = dict[Literal['data_aliases', 'default_output_directory_names', 'headers_to_extract'], PC_DataCollectionAlias|PC_DefOpDirNames|PC_HtE]
+from .custom_types import ProccessingConfig
 
 CONFIG_DATA:ProccessingConfig = read_yaml_data(DB_CONFIG_DIR / 'processing_config.yaml')[0]
 
@@ -555,7 +551,7 @@ class DataProcessor:
         """
         queue = self.get_filtered_collections(collection_aliases)
 
-        db_table_alias_map:PC_DefOpDirNames = CONFIG_DATA['default_output_directory_names']
+        db_table_alias_map:dict[str,str] = CONFIG_DATA['default_output_directory_names']
 
 
         if_exists = 'replace' if override else 'append'
@@ -644,4 +640,11 @@ class DataProcessor:
         return status, message
         
 
+class StaticAnalysisProcessor:
+    """ Handles data processing for the static analysis database 
+    
+    """
+
+    def __init__(self):
+        pass
     

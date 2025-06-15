@@ -1,8 +1,16 @@
 
+from ..utils import PickleHandler
+from ..config import SAVED_TABLE_DATA_DIR
+
 from .base import Database, logging, os
+from .utils import format_db_config, process_table_data, check_for_saved_table_data
+from .custom_types import TableData
 
 
 logger = logging.getLogger('standard')
+pickler = PickleHandler()
+
+
 
 
 class DatabaseRegistry:
@@ -23,31 +31,48 @@ class DatabaseRegistry:
         return
 
 
-            # TODO CONSIDER ADDING FUNCTION TO AUTO REGISTER ANY EXISTING DATABASES IN THE HOME DIR
-    def search_and_register_dbs(self, path:str):
+    def search_and_register_dbs(self, db_dir:str, saved_table_data_dir:str=SAVED_TABLE_DATA_DIR):
         """ Searches directory for .db files and registers them if not already. 
             
             Of note, databases registered in this way will not have any table_data 
             registered unless it is adding manually later.
 
             Args:
-                path (str) : Path to a directory potentially containing databases
+                db_dir (str) : Path to a directory potentially containing databases
+                saved_table_data_dir (str) : Path to a directory potentially containing 
+                                             previously saved table data
         
         """
-        assert os.path.isdir(path), f'Expected a path to a directory, not: {path}'
+        assert os.path.isdir(db_dir), f'Expected a path to a directory, not: {db_dir}'
         
-        valid_files = [i for i in os.listdir(path) if i.endswith('.db')]
+        valid_files = [i for i in os.listdir(db_dir) if i.endswith('.db')]
         
         if len(valid_files) == 0:
-            logger.warning(f'No databases found in this directory: {path}')
+            logger.warning(f'No databases found in this directory: {db_dir}')
             return
         
-        logger.info(f'Identified {len(valid_files)} databases to register in {path}')
+        logger.info(f'Identified {len(valid_files)} databases to register in {db_dir}')
 
+        # check for previous saves to apply semi automatically
+        save_path = check_for_saved_table_data(saved_table_data_dir)
+
+        # iterate through valid database files and create a new object
+        # automatically unpacks and assigns table data from a previous save if available
         for db in valid_files:
-            new_db = Database(database_name=db[:-3])
-            self.add_instance(new_db)
+            dbn = db[:-3]
+            new_db = Database(database_name=dbn)
+            
+            if save_path:
+                td:dict[str, TableData] = pickler.load_pickle(save_path)
+
+                if dbn in td:                
+                    new_db.add_table_data(td[dbn], if_exist='ignore')
+                else:
+                    logger.warning(f'This database ({dbn}) does not have previously saved table data in the current save: {save_path} ')
+
         
+            self.add_instance(new_db)
+
         return
 
 

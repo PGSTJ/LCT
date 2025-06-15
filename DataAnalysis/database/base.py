@@ -2,16 +2,14 @@
 from .. import datetime, Literal, logging, os, traceback, pd, TypeAlias
 from ..config import ALL_DATETIME_FORMATS, DB_DIR
 
+from .custom_types import TablesMacroInfo, TableData
+
 import sqlite3 as sl
 
 
-TableData:TypeAlias = dict[str, pd.DataFrame]
-
-
-TablesMicroInfo:TypeAlias = dict[Literal['header'], list[str]]
-TablesMacroInfo:TypeAlias = dict[str, TablesMicroInfo] # NOTE key is table name
-
 logger = logging.getLogger('standard')
+
+
 
 class Database():
     def __init__(
@@ -52,6 +50,15 @@ class Database():
         placeholders = '?,' * len(parameters)
         return placeholders[:-1]
     
+    def view_table_info(self):
+        assert self.tables, f'No table table info to view for this database: {self.database_name}'
+
+        for table_name, data in self.tables.items():
+            print(f'Table - {table_name}')
+            for key, info in data.items():
+                print(f'\t - {key} -> {info}')
+
+        return
             
 
     
@@ -112,21 +119,19 @@ class Database():
             logger.error(f'Error creating table: {table_name}\n{col_script = }\n{e}\n')
             return
 
-    def add_table_data(self, data:dict[str, list[dict[str,str]]], if_exist:Literal['ignore', 'overwrite']):
+    def add_table_data(self, data:TableData, if_exist:Literal['ignore', 'overwrite']):
         """ Adds table data to instance 
         
             Args:
                 data (dict) : Map of table name to table data represented as a list of dictionaries. Typically 
                               the result of db_table_config.csv processing.
                 if_exists (bool) : Determines behavior if database already has table config data assigned.
-                    - ignore: Ignores the new data in favor of the existing data. No changes are made.
-                    - overwrite: Overwrites the existing table config data with the new data
+                    - *ignore*: Ignores the new data in favor of the existing data. No changes are made.
+                    - *overwrite*: Overwrites the existing table config data with the new data
         
         
         """
         assert isinstance(data, dict), 'Must supply dictionary containing table data'
-        for tblnm in data:
-            assert isinstance(data[tblnm], list), f'Dictionary must contain list values, not {type(data[tblnm])}'
         
         # checks whether table data already exists and behaves according to 'if_exists' parameter
         if isinstance(self.table_data, dict) and if_exist == 'ignore':
@@ -135,6 +140,13 @@ class Database():
         
         self.table_data = data
         logger.info(f'(Re)assigned table config data for {self.database_name}')
+
+        # fill table info
+        for table_name, table_df in self.table_data.items():
+            self.tables[table_name] = {
+                    'header': table_df['header'].to_list()
+                }
+
         
         return
 
