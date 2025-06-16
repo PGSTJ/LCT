@@ -38,6 +38,10 @@ def process_and_export_lc_data(
             output_dir_map (dict[str, str]) : Override default output directory locations. Only required if
                                               all=False AND output_dir_map is None.                            
             output_file_map (dict[str, str]) : Override default output file names.
+
+        Returns:
+            The processor object to utilize extracted metadata for other databases (i.e. true empty measurements for 
+            dynamic_analyses.db)
     
     """
     assert os.path.exists(base_data_dir), f'Base data dir path does not exist: {base_data_dir}'
@@ -57,7 +61,6 @@ def process_and_export_lc_data(
         procesor.display_run_stats()
 
     if db_export:
-        assert db_reg, f'Must supply a DatabaseRegistry to export to database'
         raw_data_db = db_reg.get_instance('raw_data')
         
         procesor.db_export(raw_data_db, filter_export_collections, override=db_override)
@@ -76,5 +79,5 @@ def process_and_export_lc_data(
 
         logger.info(f'Finished exporting data to {file_export}')
 
-    return
+    return procesor
    

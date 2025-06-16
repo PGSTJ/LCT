@@ -18,3 +18,11 @@ class ProccessingConfig(TypedDict):
 
 TablesMicroInfo:TypeAlias = dict[Literal['header'], list[str]]
 TablesMacroInfo:TypeAlias = dict[str, TablesMicroInfo] # NOTE key is table name    
+
+
+
+class WhereStatement(TypedDict):
+    stmt: str
+    values: tuple[str]
+
+

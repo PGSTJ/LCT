@@ -28,3 +28,4 @@ headers_to_extract: # order matters!
     - final_mass
     - final_volume
     - finish_status
+    - empty_can_mass

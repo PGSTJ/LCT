@@ -89,6 +89,27 @@ class DataProcessor:
 
         return
 
+    def extract_empty_measurements(self) -> pd.DataFrame:
+        """ Retrieves true_empty_mass from all processed cans to update dynamic analyses
+
+            Returns:
+                A dataframe with the true empty mass and calculated true empty volume of all cans. 
+                Length is equivalent to ```len(self.can_data_df)```
+        
+        
+        """
+        assert self.can_data_df, f'Cannot extract empty can measurements without saved can_data. {self.can_data_df = }'
+        te_vol = self.can_data_df['true_empty_mass'].apply(lambda x: x / 29.5).to_list()
+
+        data = {
+            'empty_can_mass': self.can_data_df['true_empty_mass'],
+            'empty_can_volume': te_vol
+        }
+
+        return pd.DataFrame(data)
+
+
+
     # @@@@@@@@@@@@@@@@@@@ PROCESSING BACKGROUND UTILS @@@@@@@@@@@@@@@@@@@
 
     # NOTE headers used in extraction will change once new table format is fully implemented TODO 
@@ -132,8 +153,14 @@ class DataProcessor:
             # extract/collect box data
             formatted_box_properties = self._box_header_format_converter(props)
             formatted_box_properties['og_id'] = og_id
+
+            # NOTE some prices have $ while others dont - not sure why
+            if 'price' in formatted_box_properties and '$' in formatted_box_properties['price']:
+                formatted_box_properties['price'] = formatted_box_properties['price'][1:]
+
             box_data_dicts.append(formatted_box_properties)
 
+            # normalize labeling 
             if table_data is not None:
                 norm_can_df = self._normalize_can_df(table_data, 'md')
             else:
@@ -197,6 +224,7 @@ class DataProcessor:
                 continue
 
             # NOTE TEMPORARY REQUIREMENT UNTIL OLD FORMAT DOESN'T REQUIRE PROCESSING ANYMORE
+            # TODO: instead of np.nan look for saved true empty data
             # Manually add 'true_empty_mass' column for new structure
             if 'true_empty_mass' not in df.columns:
                 df.insert(loc=len(df.columns) - 1, column='true_empty_mass', value=np.nan)
@@ -293,9 +321,12 @@ class DataProcessor:
     @staticmethod
     def _get_base_ogid(full_og_id: str) -> str:
         """Extracts the pure original ID from the full ID."""
-        match_ogid = re.match(r"(\d+)([A-Za-z]+)", full_og_id)
-        number, flavor = match_ogid.groups()
-        return number + flavor
+        try:
+            match_ogid = re.match(r"(\d+)([A-Za-z]+)", full_og_id)
+            number, flavor = match_ogid.groups()
+            return number + flavor
+        except Exception as e:
+            print(f'ERROR GETTING BASE OGID: {full_og_id = }')
 
     def _get_box_id(self, df:pd.DataFrame, base_original_box_id: str) -> str | None:
         """Gets the generated box ID from the collection."""
@@ -329,6 +360,7 @@ class DataProcessor:
         properties_section = parts[0]
         table_section = "".join(parts[1:]) if len(parts) > 1 else None
 
+
         # Extract properties into a dictionary (key-value pairs)
         properties = {}
         for line in properties_section.splitlines():
@@ -340,11 +372,12 @@ class DataProcessor:
         # Extract table using pandas
         if isinstance(table_section, str):
             # Remove leading and trailing pipes and spaces from the table section
-            cleaned_table_section = re.sub(r"^\s*\|\s*|\s*\|\s*$", "", table_section, flags=re.MULTILINE)
+            cleaned_table_section = re.sub(r"^\s*\|\s*|\s*\|\s*\|\s*$", "", table_section, flags=re.MULTILINE)
             table = pd.read_csv(io.StringIO(cleaned_table_section), sep=r"\s*\|\s*", engine='python')
         else:
             # raise Exception(f'Extracted Table section from MD was empty.\n{table_section = }\n{parts = }')
             table = None
+
 
         return properties, table
 
@@ -645,12 +678,3 @@ class DataProcessor:
 
         return status, message
         
-
-class StaticAnalysisProcessor:
-    """ Handles data processing for the static analysis database 
-    
-    """
-
-    def __init__(self):
-        pass
-    

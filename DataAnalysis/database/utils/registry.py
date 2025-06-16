@@ -1,6 +1,6 @@
 
 from ...utils import PickleHandler
-from ...config import SAVED_TABLE_DATA_DIR
+from ...config import SAVED_TABLE_DATA_DIR, DB_DIR
 
 from .base import Database, logging, os, Literal
 from .custom_types import TableData
@@ -65,7 +65,7 @@ class DatabaseRegistry:
     _instances:dict[str,Database] = {}
     database_home_directory:str|None = None
 
-    def __init__(self, *, base_database_dir:str|None=None):
+    def __init__(self, *, base_database_dir:str=str(DB_DIR)):
         if base_database_dir:
             self._assign_database_home_directory(base_database_dir)
 
