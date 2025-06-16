@@ -48,6 +48,8 @@ static_analyses,can_analysis,percentage_mass_remaining,FLOAT,FALSE
 static_analyses,can_analysis,percentage_volume_remaining,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,flavor,VARCHAR(5),FALSE
 dynamic_analyses,flavor_analysis,total_purchased,INT,FALSE
+dynamic_analyses,flavor_analysis,average_drink_velocity,FLOAT,FALSE
+dynamic_analyses,flavor_analysis,average_time_to_start,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,average_finish_rate,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,average_pmr,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,average_pvr,FLOAT,FALSE

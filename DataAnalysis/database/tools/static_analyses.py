@@ -14,7 +14,7 @@ OFS_THRESHOLD = 0.015
 
 # NOTE currently pulls all saved data from raw_data -> only works when fully reseting databases (pipeline preset 1)
 # TODO need custom handling for post processing specific updates 
-def update_static_analyses():
+def update_static_analyses(if_exists:Literal['fail', 'replace', 'append']='append'):
     """ Compares box_flavor / can ids with static_analyses.db and fill/update for any missing IDs
 
 
@@ -34,8 +34,8 @@ def update_static_analyses():
     ba_data = update_box_analyses(rd_dfs, ca_data, display_updates=True)
 
     conn, _ = static_anlys.create_connection()
-    ca_data.to_sql('can_analysis', conn, if_exists='append', index=False)
-    ba_data.to_sql('box_analysis', conn, if_exists='append', index=False)
+    ca_data.to_sql('can_analysis', conn, if_exists=if_exists, index=False)
+    ba_data.to_sql('box_analysis', conn, if_exists=if_exists, index=False)
     static_anlys.close_commit(conn)
 
     logger.info('Updated static_analyis.db')
