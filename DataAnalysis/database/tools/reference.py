@@ -5,7 +5,7 @@ from ..utils.registry import DatabaseRegistry
 
 
 logger = logging.getLogger('standard')
-db_reg = DatabaseRegistry(base_database_dir=DB_DIR)
+db_reg = DatabaseRegistry()
 
 rdf = DB_CONFIG_DIR / 'reference_data.csv'
 

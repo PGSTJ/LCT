@@ -24,7 +24,9 @@ def create_reset_databases(
         db_config_file_path:str=str(db_cdf), 
         reset:bool=False, 
         save_table_data:bool=False,
-        output_dir_path:str|None=None
+        output_dir_path:str|None=None,
+        *,
+        db_whitelist:tuple[str]|None=None
     ):
     """ Creates or resets database(s) based on config file then registers them to the global registry
     
@@ -35,18 +37,20 @@ def create_reset_databases(
             save_table_date (bool) : If true, will pickle save extracted table data to the specified output_path.
                                      Default is False.
             output_path (str) : Path to the directory containing saved table data
+            db_whitelist (tuple[str]) : These database names will not be reset. Reset must be marked True. 
     
     
     """
-    if reset:
-        db_reg.reset_databases()
-
     # recreate tables per current DB TABLE CONFIG file TODO check whether  
     formatted_db_config = format_db_config(db_config_file_path)
 
     all_table_data = {}
 
     for database_name,table_data in formatted_db_config.items():
+
+        if _resolve_reset_whitelist(db_reg=db_reg, db_name=database_name, reset=reset, whitelist=db_whitelist):
+            continue
+
         if db_reg.validate_registration(database_name):
             continue
 
@@ -152,5 +156,31 @@ def process_table_data(table_data_map:TableMap) -> TableData:
     
     return all_tables
 
+def _resolve_reset_whitelist(db_reg:DatabaseRegistry, db_name:str, reset:bool, *, whitelist:tuple[str]|None) -> bool:
+    """ Resets a database if reset is True and the database name is not whitelisted 
+    
+        Args:
+            db_reg (DatabaseRegistry) : Registry to call reset_databases() if needed
+            db_name (str) : Registered name of the database to consider dropping
+            reset (bool) : If true, will reset non-whitelisted databases
+            whitelist (tuple[str]) : These databases will not be reset or recreated
 
+        Returns:
+            True if database reset / recreation is not required
+    
+    """
+    if not reset:
+        # if not resetting then it shouldn't exist in the registry 
+        # validate registration will catch/skip existing databases
+        # use cases for not resetting an existing database include adding a new database 
+        # or table from the database config file
+        return  
+    
+    # assuiming reset is true, check for any whitelisted databases to mark this iteration to skip
+    if whitelist and db_name in whitelist:
+        return True 
+
+
+    db_reg.reset_databases(database_names=(db_name,))
+    return
     

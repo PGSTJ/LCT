@@ -5,7 +5,7 @@ from ...config import DB_DIR
 from ..utils.registry import DatabaseRegistry, Database
 
 logger = logging.getLogger('standard')
-db_reg = DatabaseRegistry(base_database_dir=DB_DIR)
+db_reg = DatabaseRegistry()
 
 # threshold for a can to objectively be considered "finished"
 # can be interpreted as direct numerical threshold for percent mass remaining
@@ -31,7 +31,7 @@ def update_static_analyses(if_exists:Literal['fail', 'replace', 'append']='appen
 
 
     ca_data = update_can_analyses(rd_dfs['can_data'], display_updates=False)
-    ba_data = update_box_analyses(rd_dfs, ca_data, display_updates=True)
+    ba_data = update_box_analyses(rd_dfs, ca_data, display_updates=False)
 
     conn, _ = static_anlys.create_connection()
     ca_data.to_sql('can_analysis', conn, if_exists=if_exists, index=False)
@@ -49,20 +49,19 @@ def update_can_analyses(can_df:pd.DataFrame, *, display_updates:bool=False):
     """
     # use global averages if empty can mass/volume is not available
     dyn_db = db_reg.get_instance('dynamic_analyses')
-    running_metrics = dyn_db.get_data(['parameters', 'value'], 'general')
+    running_metrics = dyn_db.get_data(['parameters', 'value'], 'can_measurements')
 
     mass_and_volumes = can_df[[i for i in can_df.columns if i.endswith('_mass') or i.endswith('_volume')]]
-
+    
     # updates empty_can_mass with global average and create col for empty can volume
     mass_and_volumes['empty_can_mass'] = mass_and_volumes['empty_can_mass'].fillna(running_metrics.iloc[2, 1])
-    mass_and_volumes.insert(len(mass_and_volumes.columns), 'empty_can_volume', mass_and_volumes['empty_can_mass'].apply(lambda x: x / 29.5))
+    mass_and_volumes.insert(len(mass_and_volumes.columns), 'empty_can_volume', mass_and_volumes['empty_can_mass'].apply(lambda x: x / 29.5)) # manual g -> fl oz conversion 
+
 
     # calculate percentage remaining mass/volume, setting the lowest possible value as 0 since using global averages results in some "negative" percentages
-    pmr = (mass_and_volumes['final_mass'] - mass_and_volumes['empty_can_mass']) / (mass_and_volumes['initial_mass'] - mass_and_volumes['empty_can_mass'])
-    pmr = pmr.apply(lambda x: max(x, 0))
+    pmr = ((mass_and_volumes['final_mass'] - mass_and_volumes['empty_can_mass']).apply(lambda x: max(x, 0))) / (mass_and_volumes['initial_mass'] - mass_and_volumes['empty_can_mass'])
 
-    pvr = (mass_and_volumes['final_volume'] - mass_and_volumes['empty_can_volume']) / (mass_and_volumes['initial_volume'] - mass_and_volumes['empty_can_volume'])
-    pvr = pvr.apply(lambda x: max(x, 0))
+    pvr = ((mass_and_volumes['final_volume'] - mass_and_volumes['empty_can_volume'])).apply(lambda x: max(x, 0)) / (mass_and_volumes['initial_volume'] - mass_and_volumes['empty_can_volume'])
 
     # objective finish status is dependent  pmr < 0.01
     ofs = pmr.apply(lambda x: True if x < OFS_THRESHOLD else False)
@@ -71,7 +70,8 @@ def update_can_analyses(can_df:pd.DataFrame, *, display_updates:bool=False):
         'can_id': can_df['id'],
         'objective_finish_status': ofs,
         'mass_difference': mass_and_volumes['initial_mass'] - mass_and_volumes['final_mass'],
-        'true_mass_difference': mass_and_volumes['initial_mass'] - mass_and_volumes['empty_can_mass'],
+        'true_mass_difference': (mass_and_volumes['final_mass'] - mass_and_volumes['empty_can_mass']).apply(lambda x: max(x, 0)), # difference relative to liquid content only
+        'true_volume_difference': (mass_and_volumes['final_volume'] - mass_and_volumes['empty_can_volume']).apply(lambda x: max(x, 0)), # difference relative to liquid content only
         'volume_difference': mass_and_volumes['initial_volume'] - mass_and_volumes['final_volume'],
         'percentage_mass_remaining': pmr,
         'percentage_volume_remaining': pvr
@@ -83,8 +83,6 @@ def update_can_analyses(can_df:pd.DataFrame, *, display_updates:bool=False):
         print(ca_df)
 
     return ca_df
-
-    # df.to_sql(name=table_name, con=conn, if_exists=if_exists, index=False)
 
 def update_box_analyses(
         all_raw_data:dict[str, pd.DataFrame],

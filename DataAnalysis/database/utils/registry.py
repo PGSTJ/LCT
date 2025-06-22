@@ -61,24 +61,47 @@ def _check_for_saved_table_data(output_dir_path:str, decision_behavior:Literal['
 
 
 class DatabaseRegistry:
-    """ Global registry where database instances are stored """
+    """ Global registry where database instances are stored 
+    
+        Args:
+            base_database_dir (str) : Override the default base database directory 
+            search_for_existing (bool) : If true, will search the base database directory 
+                                         for existing databases to register
+    
+    
+    """
     _instances:dict[str,Database] = {}
-    database_home_directory:str|None = None
+    _database_home_directory:str = str(DB_DIR)
+    _saved_table_data_directory:str = str(SAVED_TABLE_DATA_DIR)
 
-    def __init__(self, *, base_database_dir:str=str(DB_DIR)):
-        if base_database_dir:
-            self._assign_database_home_directory(base_database_dir)
+
+    def __init__(self, *, base_database_directory:str|None=None, saved_table_data_directory:str|None=None, search_for_existing:bool=False):
+        if isinstance(base_database_directory, str):
+            self._assign_database_home_directory(base_database_directory)
+
+        if isinstance(saved_table_data_directory, str):
+            self._assign_table_save_directory(saved_table_data_directory)
+
+        if search_for_existing:
+            self.search_and_register_dbs()
 
 
 
     @classmethod
     def _assign_database_home_directory(cls, path:str):
-        cls.database_home_directory = path
-        cls.search_and_register_dbs(cls, path)
+        assert os.path.isdir(path), f'Expected a path to a directory, not: {path}'
+        cls._database_home_directory = path
+        return
+    
+    @classmethod
+    def _assign_table_save_directory(cls, path:str):
+        assert os.path.isdir(path), f'Expected a path to a directory, not: {path}'
+        cls._saved_table_data_directory = path
         return
 
 
-    def search_and_register_dbs(self, db_dir:str, saved_table_data_dir:str=SAVED_TABLE_DATA_DIR):
+    @classmethod
+    def search_and_register_dbs(cls):
         """ Searches directory for .db files and registers them if not already. 
             
             Of note, databases registered in this way will not have any table_data 
@@ -90,7 +113,7 @@ class DatabaseRegistry:
                                              previously saved table data
         
         """
-        assert os.path.isdir(db_dir), f'Expected a path to a directory, not: {db_dir}'
+        db_dir = cls._database_home_directory
         
         valid_files = [i for i in os.listdir(db_dir) if i.endswith('.db')]
         
@@ -101,7 +124,7 @@ class DatabaseRegistry:
         logger.info(f'Identified {len(valid_files)} databases to register in {db_dir}')
 
         # check for previous saves to apply semi automatically
-        save_path = _check_for_saved_table_data(saved_table_data_dir)
+        save_path = _check_for_saved_table_data(cls._saved_table_data_directory)
 
         # iterate through valid database files and create a new object
         # automatically unpacks and assigns table data from a previous save if available
@@ -118,7 +141,7 @@ class DatabaseRegistry:
                     logger.warning(f'This database ({dbn}) does not have previously saved table data in the current save: {save_path} ')
 
         
-            self.add_instance(new_db)
+            cls.add_instance(new_db)
 
         return
 
@@ -152,7 +175,7 @@ class DatabaseRegistry:
         print(f'Total Databases Registed: {total_reg}')
         
         if total_reg == 0:
-            cls.verify_true_db_existence(cls.database_home_directory)
+            cls.verify_true_db_existence(cls._database_home_directory)
             return
         
         for db_name in cls._instances:
@@ -239,10 +262,15 @@ class DatabaseRegistry:
         """
         assert len(cls._instances) > 0, f'No registered databases to drop'
 
-        # queues either all or only specified  databases from the registry
-        queue:list[tuple[str, Database]] = [(dbn, dbi) for dbn,dbi in cls._instances.items()] if not database_names else [(dbn, dbi) for dbn,dbi in cls._instances.items() for dbn in database_names]
+        # selects any provided databases, assuming all are valid
+        if database_names:
+            assert all(name in cls._instances for name in database_names), f'Invalid database name(s) provided: {[nm for nm in database_names if nm not in cls._instances]}'
+            queue = [(dbn, dbi) for dbn,dbi in cls._instances.items() if dbn in database_names]
+        else:
+            queue:list[tuple[str, Database]] = [(dbn, dbi) for dbn,dbi in cls._instances.items()]
 
-        for dbn, dbi in queue:
+
+        for _, dbi in queue:
             dbi.drop_tables()
         return queue
     

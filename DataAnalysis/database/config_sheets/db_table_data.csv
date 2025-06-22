@@ -43,6 +43,7 @@ static_analyses,can_analysis,can_id,VARCHAR(7),FALSE
 static_analyses,can_analysis,objective_finish_status,BOOL,FALSE
 static_analyses,can_analysis,mass_difference,FLOAT,FALSE
 static_analyses,can_analysis,true_mass_difference,FLOAT,FALSE
+static_analyses,can_analysis,true_volume_difference,FLOAT,FALSE
 static_analyses,can_analysis,volume_difference,FLOAT,FALSE
 static_analyses,can_analysis,percentage_mass_remaining,FLOAT,FALSE
 static_analyses,can_analysis,percentage_volume_remaining,FLOAT,FALSE
@@ -53,5 +54,5 @@ dynamic_analyses,flavor_analysis,average_time_to_start,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,average_finish_rate,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,average_pmr,FLOAT,FALSE
 dynamic_analyses,flavor_analysis,average_pvr,FLOAT,FALSE
-dynamic_analyses,general,parameters,TEXT,FALSE
-dynamic_analyses,general,value,FLOAT,FALSE
+dynamic_analyses,can_measurements,parameters,TEXT,FALSE
+dynamic_analyses,can_measurements,value,FLOAT,FALSE

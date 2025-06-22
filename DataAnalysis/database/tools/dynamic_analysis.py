@@ -4,19 +4,18 @@ from ...config import DB_DIR
 from ..utils.registry import DatabaseRegistry, Database
 
 logger = logging.getLogger('standard')
-db_reg = DatabaseRegistry(base_database_dir=DB_DIR)
+db_reg = DatabaseRegistry()
 
 GENERAL_PARAMETERS = [
     'avg_can_mass',
     'avg_can_volume',
     'avg_empty_can_mass', 
-    'avg_empty_can_volume',
-    'finish_threshold'
+    'avg_empty_can_volume'
 ]
 
 
 
-def default_fill_general_table():
+def default_fill_can_measurements():
     dyn_db = db_reg.get_instance('dynamic_analyses')
 
     table_data = {
@@ -27,13 +26,13 @@ def default_fill_general_table():
     td_df = pd.DataFrame(table_data)
 
     conn, _ = dyn_db.create_connection()
-    td_df.to_sql(name='general', con=conn, if_exists='replace', index=False)
+    td_df.to_sql(name='can_measurements', con=conn, if_exists='replace', index=False)
     dyn_db.close_commit(conn)
 
-    logger.info(f'Filled DynamicAnalyses General table with default parameters: {table_data['parameters']}')
+    logger.info(f'Filled DynamicAnalyses Can Measurements table with default parameters: {table_data['parameters']}')
 
-def update_table_general():
-    """ Updates the parameters in the general table 
+def update_can_measurements():
+    """ Updates the parameters in the can measurements table 
     
     
     """
@@ -63,12 +62,12 @@ def update_table_general():
         set = {'value':average}
         where = {'parameters':parameter}
 
-        dyn_db.update_values('general', set, where)
+        dyn_db.update_values('can_measurements', set, where)
 
     # finish threshold is based on average mass/volume for initial and empty cans
 
 
-    print(f'Updated the general Dynamic Analysis table')
+    print(f'Updated the Can Measurements (Dynamic Analyses) table')
 
     return
 

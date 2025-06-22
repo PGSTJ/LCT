@@ -186,18 +186,13 @@ class Database():
         self.close_commit(conn)
         return data
 
-
-
-
     @staticmethod
     def _generate_where_stmt(where_filter:list[tuple[str,str]]) -> WhereStatement:       
         return {
             'stmt': '=? AND '.join([info[0] for info in where_filter])+'=?',
             'values': tuple([info[1] for info in where_filter])
         }
-        
-    
-                    
+         
     def update_values(self, table:str, set_data:dict[str,str], where_data:dict[str,str]):
         """ Updates table at the parameters provided
 
@@ -241,26 +236,8 @@ class Database():
 
         return
 
-
-    # NOTE likely deprecate
-    @staticmethod
-    def standardize_date(date_input:str) -> datetime.datetime:
-        if '/' in date_input:
-            return datetime.datetime.strptime(date_input, '') # NOTE broken after removing DATE_FORMAT
-        return datetime.datetime.strptime(date_input, ALL_DATETIME_FORMATS['ALT_DATE'])
-
-    def _date_time_difference(self, final_date:str, initial_date:str) -> datetime.timedelta:
-        final = self.standardize_date(final_date)
-        initial = self.standardize_date(initial_date)
-        return final - initial 
-    
     def display_data(self):
         class_data = {param:self.__dict__[param] for param in self.__dict__ if param in self.CLASS_PARAMS}
         for data in class_data:
             print(f'{data}: {class_data[data]}')
     
-    @staticmethod
-    def is_value_empty(value) -> bool:
-        if value in ['nan', '', 'NA']:
-            return True
-        return False

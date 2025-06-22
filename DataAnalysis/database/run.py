@@ -2,14 +2,18 @@
 from ..config import EXTERNAL_DATA_DIR, SAVED_TABLE_DATA_DIR
 
 
+
+# NOTE All of these modules are creating a db_reg object
+# TODO reduce object creation by passing a single object from the highest file (i.e. this one)
+# TODO all modules below, and anywhere else db_reg is created needs to be converted to a param for each function
 from .utils.general import create_reset_databases, DatabaseRegistry
 from .tools.reference import upload_reference_data
 from .tools.raw_data import process_and_export_lc_data
-from .tools.dynamic_analysis import default_fill_general_table, update_table_general, update_flavor_analysis
+from .tools.dynamic_analysis import default_fill_can_measurements, update_can_measurements, update_flavor_analysis
 from .tools.static_analyses import update_static_analyses
 
 
-
+db_reg = DatabaseRegistry(search_for_existing=True)
  
 
 
@@ -54,7 +58,7 @@ class DAUtilPipelinePresets:
 
         create_reset_databases(reset=True, save_table_data=True, output_dir_path=SAVED_TABLE_DATA_DIR)
         upload_reference_data()
-        default_fill_general_table()
+        default_fill_can_measurements()
 
         return
     
@@ -91,8 +95,11 @@ class DAUtilPipelinePresets:
             db_export=True
         )
 
+        # NOTE order is imperitive 
+        # can measurements in dynamic analyses MUST be updated prior to calculating static analyses
+        # then static analyses is required for updating the flavor analyses
+        update_can_measurements()
         update_static_analyses()
-        update_table_general()
         update_flavor_analysis()
 
         return
